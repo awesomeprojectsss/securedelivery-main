@@ -630,13 +630,51 @@ Do not route every operation through a queue without reason.
 
 # Dashboard and Mobile Technologies
 
-The frontend and mobile application technologies are not yet fixed.
+The technology baseline is now defined for both client applications.
 
-Their architecture documents may define boundaries, responsibilities and required capabilities without selecting a framework prematurely.
+## SecureDelivery Dashboard
 
-The team will update those architecture documents when the technology decisions are made.
+The web dashboard uses:
 
-TypeScript is preferred where supported by the selected frameworks.
+- Next.js
+- TypeScript
+
+The exact frontend architecture may still evolve through explicit architectural decisions, including topics such as:
+
+- routing conventions
+- rendering strategy
+- state management
+- data-fetching strategy
+- WebSocket client strategy
+- component library / design system
+- authentication token handling
+- testing strategy
+- deployment strategy
+
+Do not replace Next.js with another frontend framework without an explicit architectural decision.
+
+## SecureDelivery Mobile
+
+The mobile IoT application uses:
+
+- Flutter
+- Dart
+
+The exact mobile architecture may still evolve through explicit architectural decisions, including topics such as:
+
+- target mobile platforms
+- state management
+- local durable persistence
+- background execution
+- sensor plugins
+- GPS/location integration
+- secure storage
+- transport protocol
+- retry strategy implementation
+- QR/deep-link implementation
+- testing strategy
+
+Do not replace Flutter with another mobile framework without an explicit architectural decision.
 
 ---
 
