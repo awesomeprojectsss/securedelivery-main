@@ -37,31 +37,43 @@ A courier may perform an unusual maneuver without compromising the cargo. Secure
 
 ## SmartBox Concept
 
-`SmartBox` is a logical domain entity representing a delivery box equipped with a monitoring device.
+`Device` is the canonical technical domain term.
+
+Use `Device` in:
+
+- API routes
+- backend modules
+- persistence entities
+- cross-repository contracts
+- logs
+- telemetry/event ownership
+- identifiers such as `deviceId`
+
+`SmartBox` is the product-facing label displayed to users.
 
 In the MVP:
 
 ```text
-SmartBox
-    └── Mobile IoT Device
-          └── Smartphone mounted horizontally on the box
+Product UI: SmartBox
+Technical entity: Device
+Implementation: Flutter application on a smartphone mounted horizontally on the delivery box
 ```
 
-In a future product version:
+Future:
 
 ```text
-SmartBox
-    └── Dedicated IoT Device
-          ├── MCU
-          ├── IMU
-          ├── GNSS
-          ├── Battery
-          └── Independent Connectivity
+Product UI: SmartBox
+Technical entity: Device
+Implementation: dedicated IoT hardware
 ```
 
-The software should not couple the SmartBox domain model to the smartphone implementation. The smartphone is the first device implementation, not the final definition of SmartBox.
+The Device contract must remain independent from the current smartphone implementation.
 
----
+Shared communication contracts are defined under:
+
+```text
+docs/contracts/
+```
 
 ## Main System Areas
 
@@ -85,12 +97,13 @@ Main responsibilities:
 - users
 - customers
 - administrators
-- SmartBoxes
-- SmartBox activation
+- Devices
+- Device activation
 - deliveries
 - telemetry
 - events
 - event evidence
+- speed and distance operational KPIs
 - device health
 - support tickets
 - realtime support chat
@@ -128,9 +141,9 @@ Main responsibilities:
 - user and RBAC management
 - customer management
 - administrator management
-- SmartBox management
-- SmartBox activation flows
-- SmartBox monitoring
+- Device management presented as SmartBoxes in the UI
+- Device activation flows presented as SmartBox activation
+- Device monitoring presented as SmartBox monitoring
 - customer-scoped monitoring
 - global operational monitoring for administrators
 - event visualization
@@ -241,9 +254,9 @@ A Customer must never be able to access SmartBoxes, deliveries, events, tickets 
 
 ---
 
-# SmartBox Lifecycle
+# Device Lifecycle
 
-The SmartBox is created by an Administrator and later activated by a Customer.
+The Device is created by an Administrator and later activated by a Customer. The Dashboard presents the Device as a SmartBox.
 
 Suggested conceptual lifecycle:
 
@@ -259,11 +272,11 @@ INACTIVE
 
 Historical records should be retained.
 
-A SmartBox may also have a soft-deleted state internally if needed.
+A Device may also have a soft-deleted state internally if needed.
 
 ---
 
-## SmartBox Activation
+## Device Activation
 
 The MVP uses QR Code activation.
 
@@ -272,20 +285,20 @@ The QR Code is exposed by the mobile application during the MVP.
 Conceptual flow:
 
 ```text
-Administrator creates SmartBox
+Administrator creates Device
             ↓
-SmartBox enters PENDING_ACTIVATION
+Device enters PENDING_ACTIVATION
             ↓
 Customer scans QR Code
             ↓
 Activation token is validated
             ↓
-SmartBox is associated with Customer
+Device is associated with Customer
             ↓
-SmartBox becomes ACTIVE
+Device becomes ACTIVE
 ```
 
-The QR Code should not simply expose an internal SmartBox identifier.
+The QR Code should not simply expose an internal Device identifier.
 
 Prefer a secure activation token with an explicit lifecycle and expiration strategy.
 
@@ -293,15 +306,15 @@ The exact token design may evolve.
 
 ---
 
-# SmartBox Monitoring
+# Device Monitoring
 
 Administrators need two operational views.
 
 ## Customer View
 
-An Administrator can select a Customer and view all SmartBoxes associated with that Customer.
+An Administrator can select a Customer and view all Devices associated with that Customer (displayed as SmartBoxes).
 
-For each SmartBox, the platform should expose operational information such as:
+For each Device, the platform should expose operational information such as:
 
 - latest known location
 - connectivity
@@ -313,7 +326,7 @@ For each SmartBox, the platform should expose operational information such as:
 
 ## Global View
 
-Administrators can inspect all SmartBoxes from all Customers to monitor platform-wide device health.
+Administrators can inspect all Devices from all Customers to monitor platform-wide device health.
 
 This view is intended for support and operations.
 
@@ -388,130 +401,203 @@ When monitoring is enabled:
 
 # Sensor Collection
 
-Initial MVP sampling interval:
+Sensor acquisition, normal telemetry and network transmission have intentionally different rates.
+
+Initial MVP profile:
 
 ```text
-1 sample per second
+Raw IMU sampling:                50 Hz (~20 ms)
+Event detection:                 high-frequency local processing
+GPS / ground-speed observation:  up to 1 Hz
+Normal server telemetry:         1-minute summary
+Network batch:                   normally every 1 minute
 ```
 
-The application should collect the relevant sensor and operational state required for the current algorithms.
+Raw IMU data is primarily Device-local.
 
-Possible sources include:
+The Server does not normally receive continuous accelerometer/gyroscope history when no relevant event is detected.
 
-- accelerometer
-- gyroscope
-- GPS
-- battery
-- connectivity
+The Device keeps a rolling high-frequency buffer so abnormal events can preserve precise evidence.
 
-The exact sensor payload may evolve while the team calibrates event detection.
-
-Temperature is outside the MVP.
-
----
+Temperature remains outside the MVP.
 
 # Edge Event Detection
 
-Event detection is performed on the mobile device.
+Event detection is performed on the Device.
 
-The backend is not responsible for reconstructing raw sensor streams in order to decide whether an event happened.
+The backend is not responsible for re-running Device detection algorithms from the normal telemetry stream.
 
 Conceptual pipeline:
 
 ```text
-Sensors
+High-frequency sensors
    ↓
 Sensor Collector
    ↓
 Event Detection Engine
    ↓
-Local Persistence
+Event + Evidence
+   ↓
+Local Durable Persistence
    ↓
 Sync Engine
 ```
 
-Initial event categories may include:
+Initial Device-generated event types use namespaced strings:
 
 ```text
-STRONG_IMPACT
-CRITICAL_INCLINATION
-POSSIBLE_FALL
-ABNORMAL_MOVEMENT
+motion.strong_impact
+motion.critical_inclination
+motion.possible_fall
+motion.abnormal_movement
 ```
 
-The exact algorithms and thresholds are intentionally not fixed yet.
+Event types are intentionally extensible.
 
-They will evolve through real tests.
+New event detectors should normally be deployable on the Device without requiring a backend contract change.
 
----
+The exact algorithms and thresholds will evolve through real-device tests.
 
 # Event Evidence
 
-Every detected event must preserve the data that caused the event to be detected.
-
-An event should not only say:
-
-```text
-POSSIBLE_FALL
-```
-
-It should carry enough evidence for future audit and algorithm validation.
+Every detected event must preserve enough data to explain why it was detected.
 
 Conceptually:
 
 ```text
 Event
  ├── eventId
- ├── type
+ ├── eventType
+ ├── severity
  ├── occurredAt
- ├── SmartBox
- ├── delivery
+ ├── deviceId
+ ├── monitoringSessionId
  ├── location
+ ├── detector name/version
+ ├── attributes[]
  └── evidence
-      ├── accelerometer samples
-      ├── gyroscope samples
-      ├── calculated values
-      └── relevant raw measurements
+      └── high-frequency observations[]
 ```
 
-This supports:
+Initial evidence target:
+
+```text
+approximately 2 seconds before trigger
++
+trigger/event interval
++
+approximately 2 seconds after trigger
+```
+
+At a 50 Hz IMU baseline, this preserves motion detail at roughly 20 ms intervals.
+
+The exact evidence window remains configurable.
+
+Evidence supports:
 
 - debugging
 - auditing
 - false-positive analysis
 - algorithm calibration
+- detector-version comparison
 - future model improvement
-
----
 
 # Telemetry Store-and-Forward
 
-Sensor collection and network transmission happen at different frequencies.
+Normal telemetry is intentionally compact.
 
-Initial MVP strategy:
-
-```text
-Sensor sampling: every 1 second
-Telemetry transmission: every 1 minute
-```
-
-Conceptually:
+Conceptual flow:
 
 ```text
-1-second samples
-      ↓
-Local durable storage
-      ↓
-1-minute telemetry batch
-      ↓
-Synchronization attempt
-      ↓
-SecureDelivery Server
+IMU 50 Hz                         GPS/speed up to 1 Hz
+   │                                      │
+   └──────────── Device processing ───────┘
+                     │
+           event detection + rolling buffer
+                     │
+            1-minute operational summary
+                     │
+              durable local storage
+                     │
+                batch / retry
+                     │
+              SecureDelivery Server
 ```
 
-Critical events may be eligible for earlier synchronization, but local persistence must happen first or as part of a reliable write path.
+The normal one-minute summary contains operationally useful information such as:
 
----
+- latest valid location;
+- battery;
+- connectivity;
+- monitoring status;
+- distance traveled in the period;
+- moving duration;
+- stopped duration;
+- maximum speed.
+
+The Server derives average moving speed from total distance and total moving duration.
+
+High-frequency motion data is synchronized primarily as evidence when an event is detected.
+
+Offline period summaries remain stored locally and are sent later through the same idempotent batch contract.
+
+# MVP Navigation and Speed Telemetry
+
+Speed is an official MVP telemetry capability.
+
+Preferred source:
+
+```text
+GNSS / operating-system ground speed
+```
+
+The Device observes GPS/speed at up to 1 Hz but normally sends only one-minute aggregates to the Server.
+
+Canonical normal telemetry metrics:
+
+```text
+navigation.distance.traveled   [m]
+navigation.moving.duration     [s]
+navigation.stopped.duration    [s]
+navigation.speed.maximum       [m/s]
+```
+
+The Server derives:
+
+```text
+average moving speed =
+total distance traveled / total moving duration
+```
+
+This supports KPIs such as:
+
+- average moving speed;
+- maximum speed;
+- distance traveled;
+- moving/stopped time;
+- events per 100 km;
+- event rate by speed range.
+
+For detected motion events, the Device should attach reliable speed context when available:
+
+```text
+navigation.speed.at_event
+navigation.speed.average_5s_before
+navigation.speed.maximum_10s_before
+navigation.moving
+```
+
+Speed correlation must not be presented as proven causality without additional evidence.
+
+Initial movement/stopped threshold:
+
+```text
+1.5 m/s (~5.4 km/h)
+```
+
+The threshold is configurable and subject to calibration.
+
+Full route tracking remains outside the MVP.
 
 # Offline-First Requirements
 
@@ -543,7 +629,7 @@ The mobile application must generate stable unique identifiers before transmissi
 Examples:
 
 ```text
-telemetryBatchId
+batchId
 eventId
 ```
 
@@ -591,6 +677,39 @@ Persistent message history must not depend on WebSocket delivery.
 
 ---
 
+# Shared Repository Contracts
+
+Cross-repository communication is defined under:
+
+```text
+docs/contracts/
+```
+
+The canonical contracts include:
+
+- `openapi.yaml` for HTTP
+- `asyncapi.yaml` for realtime events
+- `common.md` for shared conventions
+- `telemetry.md` for the extensible telemetry protocol
+- `events.md` for the extensible Device event protocol
+- `versioning.md` for compatibility rules
+
+Core rules:
+
+1. `Device` is the canonical technical term.
+2. `SmartBox` is a product-facing UI label.
+3. Sensor and derived telemetry measurements use generic namespaced observations.
+4. Device-generated `eventType` values are open namespaced strings.
+5. Unknown valid observation keys and event types must remain ingestible.
+6. Clients must not invent payloads independently from the canonical contract.
+7. Breaking contract changes must be explicitly versioned and coordinated.
+
+Shared cross-repository architectural decisions are stored under:
+
+```text
+docs/decisions/
+```
+
 # Backend Technology Baseline
 
 The backend MVP uses:
@@ -630,13 +749,51 @@ Do not route every operation through a queue without reason.
 
 # Dashboard and Mobile Technologies
 
-The frontend and mobile application technologies are not yet fixed.
+The technology baseline is now defined for both client applications.
 
-Their architecture documents may define boundaries, responsibilities and required capabilities without selecting a framework prematurely.
+## SecureDelivery Dashboard
 
-The team will update those architecture documents when the technology decisions are made.
+The web dashboard uses:
 
-TypeScript is preferred where supported by the selected frameworks.
+- Next.js
+- TypeScript
+
+The exact frontend architecture may still evolve through explicit architectural decisions, including topics such as:
+
+- routing conventions
+- rendering strategy
+- state management
+- data-fetching strategy
+- WebSocket client strategy
+- component library / design system
+- authentication token handling
+- testing strategy
+- deployment strategy
+
+Do not replace Next.js with another frontend framework without an explicit architectural decision.
+
+## SecureDelivery Mobile
+
+The mobile IoT application uses:
+
+- Flutter
+- Dart
+
+The exact mobile architecture may still evolve through explicit architectural decisions, including topics such as:
+
+- target mobile platforms
+- state management
+- local durable persistence
+- background execution
+- sensor plugins
+- GPS/location integration
+- secure storage
+- transport protocol
+- retry strategy implementation
+- QR/deep-link implementation
+- testing strategy
+
+Do not replace Flutter with another mobile framework without an explicit architectural decision.
 
 ---
 
@@ -658,6 +815,23 @@ Do not silently introduce a different team workflow.
 
 ---
 
+# Repository Development Documentation
+
+Each SecureDelivery repository must maintain three complementary documentation layers:
+
+- `AGENTS.md`: operational instructions for AI coding agents.
+- `docs/architecture.md`: current architecture, boundaries and technical decisions of that repository.
+- `docs/development-guide.pt-BR.md`: practical engineering guidance for human developers.
+- `docs/git-workflow.pt-BR.md`: Git, GitHub, branching, Pull Request, review and release workflow for human developers.
+
+Human-facing development workflow documentation is written in Brazilian Portuguese.
+
+AI-agent operational documentation remains in English for consistency with the engineering toolchain.
+
+The development guides must prefer idiomatic, framework-native solutions and official conventions over unnecessary custom abstractions.
+
+The Git workflow uses `develop` as the integration branch and `main` as the stable/release branch. All implementation work must occur on isolated branches and reach `develop` through Pull Requests and Code Review before promotion to `main`.
+
 # MVP Scope
 
 The MVP should focus on:
@@ -666,18 +840,19 @@ The MVP should focus on:
 - user management
 - customer management
 - administrator management
-- SmartBox management
-- QR-based SmartBox activation
+- Device management (displayed as SmartBox in the UI)
+- QR-based Device activation (displayed as SmartBox activation)
 - mobile IoT monitoring
-- 1-second sensor collection
-- on-device event detection
-- local durable telemetry storage
-- 1-minute telemetry batching
+- 50 Hz raw IMU sampling with configurable rates
+- on-Device event detection
+- 1-minute compact telemetry summaries with local durable store-and-forward
+- 1-minute normal telemetry summaries/batching
 - store-and-forward
 - retry
 - idempotent telemetry ingestion
 - idempotent event ingestion
 - event evidence
+- speed and distance operational KPIs
 - latest location
 - battery
 - connectivity

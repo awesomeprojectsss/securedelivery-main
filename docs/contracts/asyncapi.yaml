@@ -1,0 +1,252 @@
+asyncapi: 2.6.0
+info:
+  title: SecureDelivery Realtime API
+  version: 1.1.0
+  description: 'Canonical realtime contract. WebSocket messages are realtime signals; authoritative persistent state
+    remains available through the HTTP API.
+
+    '
+servers:
+  local:
+    url: ws://localhost:3000
+    protocol: ws
+channels:
+  device.status.changed:
+    subscribe:
+      message:
+        $ref: '#/components/messages/DeviceStatusChanged'
+  device.health.changed:
+    subscribe:
+      message:
+        $ref: '#/components/messages/DeviceHealthChanged'
+  event.created:
+    subscribe:
+      message:
+        $ref: '#/components/messages/EventCreated'
+  ticket.updated:
+    subscribe:
+      message:
+        $ref: '#/components/messages/TicketUpdated'
+  ticket.message.created:
+    subscribe:
+      message:
+        $ref: '#/components/messages/TicketMessageCreated'
+  notification.created:
+    subscribe:
+      message:
+        $ref: '#/components/messages/NotificationCreated'
+components:
+  schemas:
+    RealtimeEnvelope:
+      type: object
+      required:
+      - type
+      - occurredAt
+      - data
+      properties:
+        type:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        data:
+          type: object
+  messages:
+    DeviceStatusChanged:
+      name: device.status.changed
+      payload:
+        type: object
+        required:
+        - type
+        - occurredAt
+        - data
+        properties:
+          type:
+            const: device.status.changed
+          occurredAt:
+            type: string
+            format: date-time
+          data:
+            type: object
+            required:
+            - deviceId
+            - status
+            properties:
+              deviceId:
+                type: string
+                format: uuid
+              status:
+                type: string
+                enum:
+                - PENDING_ACTIVATION
+                - ACTIVE
+                - INACTIVE
+              connectivityStatus:
+                type: string
+                enum:
+                - ONLINE
+                - OFFLINE
+                - UNKNOWN
+              monitoringStatus:
+                type: string
+                enum:
+                - MONITORING
+                - STOPPED
+                - UNKNOWN
+              batteryLevelPercent:
+                type: number
+    DeviceHealthChanged:
+      name: device.health.changed
+      payload:
+        type: object
+        required:
+        - type
+        - occurredAt
+        - data
+        properties:
+          type:
+            const: device.health.changed
+          occurredAt:
+            type: string
+            format: date-time
+          data:
+            type: object
+            required:
+            - deviceId
+            - health
+            properties:
+              deviceId:
+                type: string
+                format: uuid
+              health:
+                type: string
+                enum:
+                - HEALTHY
+                - WARNING
+                - CRITICAL
+                - UNKNOWN
+    EventCreated:
+      name: event.created
+      payload:
+        type: object
+        required:
+        - type
+        - occurredAt
+        - data
+        properties:
+          type:
+            const: event.created
+          occurredAt:
+            type: string
+            format: date-time
+          data:
+            type: object
+            required:
+            - eventId
+            - deviceId
+            - eventType
+            - severity
+            properties:
+              eventId:
+                type: string
+                format: uuid
+              deviceId:
+                type: string
+                format: uuid
+              eventType:
+                type: string
+              severity:
+                type: string
+                enum:
+                - INFO
+                - WARNING
+                - CRITICAL
+    TicketUpdated:
+      name: ticket.updated
+      payload:
+        type: object
+        required:
+        - type
+        - occurredAt
+        - data
+        properties:
+          type:
+            const: ticket.updated
+          occurredAt:
+            type: string
+            format: date-time
+          data:
+            type: object
+            required:
+            - ticketId
+            - status
+            properties:
+              ticketId:
+                type: string
+                format: uuid
+              status:
+                type: string
+                enum:
+                - OPEN
+                - IN_PROGRESS
+                - WAITING_CUSTOMER
+                - RESOLVED
+                - CLOSED
+              assignedUserId:
+                type:
+                - string
+                - 'null'
+    TicketMessageCreated:
+      name: ticket.message.created
+      payload:
+        type: object
+        required:
+        - type
+        - occurredAt
+        - data
+        properties:
+          type:
+            const: ticket.message.created
+          occurredAt:
+            type: string
+            format: date-time
+          data:
+            type: object
+            required:
+            - ticketId
+            - messageId
+            - senderUserId
+            properties:
+              ticketId:
+                type: string
+                format: uuid
+              messageId:
+                type: string
+                format: uuid
+              senderUserId:
+                type: string
+                format: uuid
+    NotificationCreated:
+      name: notification.created
+      payload:
+        type: object
+        required:
+        - type
+        - occurredAt
+        - data
+        properties:
+          type:
+            const: notification.created
+          occurredAt:
+            type: string
+            format: date-time
+          data:
+            type: object
+            required:
+            - notificationId
+            properties:
+              notificationId:
+                type: string
+                format: uuid
+              code:
+                type: string
