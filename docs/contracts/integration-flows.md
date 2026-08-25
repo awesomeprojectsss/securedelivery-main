@@ -54,10 +54,10 @@ Device begins:
 
 ```text
 IMU 50 Hz
-GPS up to 1 Hz
+GPS / ground speed up to 1 Hz
 event detection
 rolling evidence buffer
-normal snapshot 1 Hz
+1-minute telemetry aggregation
 ```
 
 ---
@@ -65,29 +65,46 @@ normal snapshot 1 Hz
 ## 3. Normal Telemetry
 
 ```text
-Raw sensors
-   ↓ 50 Hz IMU
-Device detector/processing
-   ↓
-1 Hz normal snapshot
-   ↓
-Local durable storage
-   ↓
-~60 snapshots
-   ↓
-1-minute TelemetryBatch
-   ↓
-POST /api/v1/devices/{deviceId}/telemetry/batches
+Raw IMU 50 Hz                     GPS/speed up to 1 Hz
+     │                                   │
+     └──────── Device-side processing ───┘
+                      │
+              1-minute aggregation
+                      │
+       TelemetryPeriodSummary
+                      │
+          durable local storage
+                      │
+   POST /api/v1/devices/{deviceId}/telemetry/batches
 ```
+
+Each normal period summary may contain:
+
+```text
+latest location
+battery/connectivity/monitoring state
+navigation.distance.traveled
+navigation.moving.duration
+navigation.stopped.duration
+navigation.speed.maximum
+```
+
+The full raw IMU stream is not uploaded during normal operation.
 
 If offline:
 
 ```text
-send fails
+period completes
   ↓
-keep batch locally
+persist summary locally
   ↓
-retry later using SAME batchId
+accumulate pending periods
+  ↓
+connectivity returns
+  ↓
+send one batch with one or more periods
+  ↓
+retry using SAME batchId when required
 ```
 
 Server:
@@ -99,14 +116,12 @@ validate Device/session ownership
   ↓
 idempotency
   ↓
-persist
+persist compact summaries
+  ↓
+derive/index KPI data where appropriate
   ↓
 optional BullMQ downstream work
-  ↓
-publish compact realtime signal
 ```
-
----
 
 ## 4. Abnormal Event
 
@@ -121,6 +136,7 @@ Device creates eventId
    ↓
 preserve:
   - detector name/version
+  - reliable speed/navigation context when available
   - attributes
   - location
   - pre-event evidence

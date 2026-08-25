@@ -1,195 +1,165 @@
-# SecureDelivery Extensible Telemetry Contract
+# SecureDelivery Lean Telemetry Contract
 
 ## Goal
 
-The telemetry contract must allow the Device to introduce new sensors and measurements without requiring a corresponding backend release.
+SecureDelivery intentionally does **not** upload continuous raw motion telemetry during normal operation.
 
-The server understands the telemetry envelope.
+The Device uses high-frequency sensor data locally to detect events.
 
-It does not need compile-time knowledge of every sensor metric.
+The Server receives:
+
+- compact one-minute operational summaries;
+- Device state;
+- latest location;
+- navigation/speed aggregates;
+- high-frequency raw evidence only when an event is detected.
+
+This keeps the MVP useful for KPIs while avoiding storage of large volumes of raw data with little business value.
 
 ---
 
-## Acquisition and Transmission Frequencies
-
-Sensor acquisition and network transmission are separate concerns.
-
-Initial MVP profile:
+## MVP Acquisition Profile
 
 ```text
-Raw IMU sampling:          50 Hz (~20 ms between samples)
-Event detection:           runs against high-frequency IMU data/windows
-Normal telemetry snapshot: 1 Hz
-GPS/location snapshot:     up to 1 Hz when available/required
-Network telemetry batch:   every 1 minute
-Event evidence:            high-frequency window around the event
+Raw IMU sampling:                 50 Hz (~20 ms)
+Event detection:                  high-frequency local processing
+GPS / ground-speed observation:   up to 1 Hz
+Normal server telemetry summary:  1 summary/minute
+Network batching:                 normally every 1 minute
+Event evidence:                   high-frequency samples around event
 ```
 
-### Why 50 Hz?
-
-At 1 Hz, an impact or abrupt angular change lasting 50–200 ms may happen entirely between samples.
-
-At 50 Hz, the Device receives approximately one IMU sample every 20 ms, allowing the detector to observe rapid motion much more accurately.
-
-50 Hz is the initial baseline, not a permanent hardcoded invariant.
-
-The sampling profile should remain configurable and may be tuned through real-device testing.
+The rates are configuration values and may be calibrated through real-device testing.
 
 ---
 
-## High-Frequency Data Policy
+## What Stays on the Device
 
-Normal high-frequency IMU samples do not need to be continuously uploaded to the server.
+During normal operation, the following data is primarily Device-local:
 
-The Device uses high-frequency samples for local detection.
+- raw 50 Hz accelerometer samples;
+- raw 50 Hz gyroscope samples;
+- high-frequency derived orientation samples;
+- short rolling IMU evidence buffer;
+- per-second GPS/speed observations used to calculate minute summaries.
 
-Normal telemetry persists/transmits a lower-rate snapshot.
+When no event is detected, old raw IMU data may be discarded after it is no longer needed by the rolling evidence window.
 
-High-frequency raw data is retained and uploaded when required as event evidence.
-
-This avoids unnecessary:
-
-- network traffic
-- server storage
-- battery usage
-- processing cost
-
-while preserving precision for abnormal-event auditing.
+The Device must not continuously send or persist the complete 50 Hz motion stream on the Server.
 
 ---
 
-## Observation
+## What the Server Receives Normally
 
-Generic sensor measurements use `Observation`.
+For each completed telemetry period, initially one minute, the Device sends a compact summary.
 
-Conceptual model:
+The MVP summary includes:
+
+### Operational state
+
+- battery;
+- connectivity;
+- monitoring status.
+
+### Latest location
+
+- latest valid latitude/longitude;
+- GPS accuracy;
+- timestamp.
+
+The MVP does not reconstruct or persist a full delivery route from normal telemetry.
+
+### Navigation aggregates
+
+Canonical MVP observations:
+
+```text
+navigation.distance.traveled
+navigation.moving.duration
+navigation.stopped.duration
+navigation.speed.maximum
+```
+
+Canonical units:
+
+```text
+navigation.distance.traveled -> m
+navigation.moving.duration   -> s
+navigation.stopped.duration  -> s
+navigation.speed.maximum     -> m/s
+```
+
+The server can derive:
+
+```text
+average moving speed = total distance traveled / total moving duration
+```
+
+This is preferable to averaging per-minute averages.
+
+The Dashboard converts canonical SI units for presentation, such as m/s to km/h.
+
+---
+
+## Speed Source
+
+Preferred speed source:
+
+```text
+GNSS / operating-system ground speed
+```
+
+Do not estimate normal delivery speed by integrating accelerometer acceleration over time because accumulated drift makes it unsuitable for this KPI.
+
+If direct ground speed is unavailable, a Device implementation may derive speed from consecutive valid GPS fixes as a fallback, with explicit accuracy and timestamp filtering.
+
+The movement/stopped classification threshold must be configurable.
+
+Initial engineering baseline:
+
+```text
+moving threshold: 1.5 m/s (~5.4 km/h)
+```
+
+This threshold is not a business rule and should be calibrated through real motorcycle/delivery tests.
+
+GPS readings that fail the Device's quality criteria must not be treated as reliable speed samples.
+
+---
+
+## Generic Observation
+
+Extensible measurements continue to use the generic Observation envelope:
 
 ```json
 {
-  "key": "motion.orientation.pitch",
-  "value": 42.7,
-  "unit": "deg"
+  "key": "navigation.speed.maximum",
+  "value": 14.7,
+  "unit": "m/s"
 }
 ```
 
 Supported values:
 
-- number
-- string
-- boolean
+- number;
+- string;
+- boolean.
 
 `unit` is optional.
 
-Examples:
-
-```json
-{
-  "key": "motion.acceleration.x",
-  "value": 0.18,
-  "unit": "m/s2"
-}
-```
-
-```json
-{
-  "key": "environment.temperature",
-  "value": 4.7,
-  "unit": "celsius"
-}
-```
-
-```json
-{
-  "key": "container.door.open",
-  "value": true
-}
-```
-
-The last two examples are future-compatible examples only; they are not MVP sensor requirements.
+New sensor metrics may be introduced without changing the common server DTO when the envelope remains valid.
 
 ---
 
-## Telemetry Sample
+## Telemetry Period Summary
 
 Example:
 
 ```json
 {
-  "sequence": 42,
-  "sampledAt": "2026-08-25T00:10:42.145Z",
-  "location": {
-    "latitude": -23.55052,
-    "longitude": -46.63331,
-    "accuracyMeters": 7.2
-  },
-  "observations": [
-    {
-      "key": "motion.acceleration.x",
-      "value": 0.18,
-      "unit": "m/s2"
-    },
-    {
-      "key": "motion.acceleration.y",
-      "value": -0.42,
-      "unit": "m/s2"
-    },
-    {
-      "key": "motion.acceleration.z",
-      "value": 9.74,
-      "unit": "m/s2"
-    },
-    {
-      "key": "motion.orientation.pitch",
-      "value": 3.7,
-      "unit": "deg"
-    }
-  ]
-}
-```
+  "periodStartedAt": "2026-08-25T00:10:00.000Z",
+  "periodFinishedAt": "2026-08-25T00:10:59.999Z",
 
----
-
-## Device State
-
-Platform-understood state remains structured because the backend uses it operationally.
-
-Example:
-
-```json
-{
-  "battery": {
-    "levelPercent": 76,
-    "charging": false
-  },
-  "connectivity": {
-    "status": "ONLINE",
-    "type": "CELLULAR"
-  },
-  "monitoringStatus": "MONITORING"
-}
-```
-
-Do not encode platform-level operational state as arbitrary sensor observations when the server must interpret it consistently.
-
----
-
-## Telemetry Batch
-
-Endpoint:
-
-```text
-POST /api/v1/devices/{deviceId}/telemetry/batches
-```
-
-Example:
-
-```json
-{
-  "schemaVersion": 1,
-  "batchId": "019912a7-b2b8-7892-a441-bf9fdcbcab23",
-  "monitoringSessionId": "019912a6-b01c-7ba4-b842-f64abfe20f02",
-  "startedAt": "2026-08-25T00:10:00.000Z",
-  "finishedAt": "2026-08-25T00:10:59.999Z",
   "deviceState": {
     "battery": {
       "levelPercent": 76,
@@ -201,22 +171,34 @@ Example:
     },
     "monitoringStatus": "MONITORING"
   },
-  "samples": [
+
+  "lastLocation": {
+    "latitude": -23.55052,
+    "longitude": -46.63331,
+    "accuracyMeters": 7.2,
+    "recordedAt": "2026-08-25T00:10:58.900Z"
+  },
+
+  "observations": [
     {
-      "sequence": 1,
-      "sampledAt": "2026-08-25T00:10:00.132Z",
-      "location": {
-        "latitude": -23.55052,
-        "longitude": -46.63331,
-        "accuracyMeters": 7.2
-      },
-      "observations": [
-        {
-          "key": "motion.orientation.pitch",
-          "value": 3.7,
-          "unit": "deg"
-        }
-      ]
+      "key": "navigation.distance.traveled",
+      "value": 702.0,
+      "unit": "m"
+    },
+    {
+      "key": "navigation.moving.duration",
+      "value": 52.4,
+      "unit": "s"
+    },
+    {
+      "key": "navigation.stopped.duration",
+      "value": 7.6,
+      "unit": "s"
+    },
+    {
+      "key": "navigation.speed.maximum",
+      "value": 17.2,
+      "unit": "m/s"
     }
   ]
 }
@@ -224,43 +206,141 @@ Example:
 
 ---
 
-## Idempotency
+## Telemetry Batch
 
-`batchId` is generated by the Device before transmission.
+The transport remains batch-oriented so offline Devices can synchronize multiple pending periods in one request.
 
-Retries of the same logical batch must reuse the same `batchId`.
+Endpoint:
 
-Possible acknowledgement:
+```text
+POST /api/v1/devices/{deviceId}/telemetry/batches
+```
+
+Example:
 
 ```json
 {
+  "schemaVersion": 2,
   "batchId": "019912a7-b2b8-7892-a441-bf9fdcbcab23",
+  "monitoringSessionId": "019912a6-b01c-7ba4-b842-f64abfe20f02",
+  "periods": [
+    {
+      "periodStartedAt": "2026-08-25T00:10:00.000Z",
+      "periodFinishedAt": "2026-08-25T00:10:59.999Z",
+      "deviceState": {
+        "battery": {
+          "levelPercent": 76,
+          "charging": false
+        },
+        "connectivity": {
+          "status": "ONLINE",
+          "type": "CELLULAR"
+        },
+        "monitoringStatus": "MONITORING"
+      },
+      "lastLocation": {
+        "latitude": -23.55052,
+        "longitude": -46.63331,
+        "accuracyMeters": 7.2,
+        "recordedAt": "2026-08-25T00:10:58.900Z"
+      },
+      "observations": [
+        {
+          "key": "navigation.distance.traveled",
+          "value": 702.0,
+          "unit": "m"
+        },
+        {
+          "key": "navigation.moving.duration",
+          "value": 52.4,
+          "unit": "s"
+        },
+        {
+          "key": "navigation.stopped.duration",
+          "value": 7.6,
+          "unit": "s"
+        },
+        {
+          "key": "navigation.speed.maximum",
+          "value": 17.2,
+          "unit": "m/s"
+        }
+      ]
+    }
+  ]
+}
+```
+
+An online Device normally sends one period per batch.
+
+An offline Device may send multiple accumulated period summaries after connectivity returns.
+
+---
+
+## Idempotency
+
+`batchId` is generated before transmission.
+
+Retries of the same logical batch reuse the same `batchId`.
+
+Acknowledgement:
+
+```json
+{
+  "id": "019912a7-b2b8-7892-a441-bf9fdcbcab23",
   "status": "ACCEPTED",
   "receivedAt": "2026-08-25T00:11:03.121Z"
 }
 ```
 
-Retry after the server already persisted the batch:
+A repeated accepted batch returns `ALREADY_ACCEPTED`.
 
-```json
-{
-  "batchId": "019912a7-b2b8-7892-a441-bf9fdcbcab23",
-  "status": "ALREADY_ACCEPTED",
-  "receivedAt": "2026-08-25T00:11:03.121Z"
-}
-```
+---
+
+## KPI Basis
+
+With normal telemetry summaries, the platform can calculate:
+
+- total monitored distance;
+- average moving speed;
+- maximum speed;
+- moving time;
+- stopped time;
+- average speed by Customer;
+- average speed by Device;
+- average speed by monitoring session/delivery;
+- events per 100 km;
+- events by speed range when combined with event context.
+
+No continuous server-side raw IMU history is required for these KPIs.
+
+---
+
+## Retention Principle
+
+Store server-side data according to business value.
+
+### Keep
+
+- telemetry period summaries;
+- Device operational state;
+- navigation aggregates;
+- event records;
+- event evidence;
+- audit-relevant metadata.
+
+### Do not normally keep
+
+- continuous raw IMU data with no event;
+- continuous gyroscope history with no event;
+- full per-second route history solely because it is available.
+
+Future dedicated IoT Devices may introduce measurements such as temperature or humidity whose continuous history has business value. Those measurements can use the same generic Observation contract and may have a different retention profile.
 
 ---
 
 ## Server Compatibility Rule
 
-The server must not reject a valid telemetry batch merely because an observation key is unknown.
+The server must not reject a valid telemetry summary because it contains an unknown valid Observation key.
 
-Unknown keys are allowed when:
-
-- the common envelope is valid;
-- the value type is supported;
-- the key follows protocol naming constraints;
-- payload limits are respected.
-
-The server may add specialized indexing/processing for known keys without making generic ingestion depend on that knowledge.
+Known metrics may receive specialized indexing or KPI processing without making ingestion dependent on compile-time knowledge of every future sensor.

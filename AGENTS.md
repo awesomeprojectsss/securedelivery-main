@@ -102,15 +102,44 @@ Do not convert the extensible observation/event namespaces into closed enums.
 
 ---
 
+## Lean Telemetry Policy
+
+Do not continuously upload normal raw IMU data.
+
+The MVP separates acquisition from server retention:
+
+```text
+IMU raw:                  50 Hz, Device-local
+GPS/ground speed:         up to 1 Hz, Device-local
+normal Server telemetry:  1-minute summaries
+event evidence:           high-frequency around events
+```
+
+Normal telemetry summaries should preserve business-value data such as:
+
+- Device state;
+- latest location;
+- distance traveled;
+- moving/stopped duration;
+- maximum speed.
+
+Average moving speed is derived from total distance / total moving duration.
+
+Motion events should include reliable speed context when available.
+
 ## Sampling Baseline
 
 Initial MVP:
 
 ```text
-IMU raw sampling: 50 Hz
-normal telemetry snapshot: 1 Hz
-network batch: 1 minute
-event evidence: high-frequency samples around event
+IMU raw sampling:              50 Hz
+GPS / ground-speed sampling:   up to 1 Hz
+normal server telemetry:       1-minute summaries
+network batching:              normally every 1 minute
+event evidence:                high-frequency samples around event
 ```
 
-Do not reduce IMU sampling back to 1 Hz without an explicit architectural decision supported by test evidence.
+Do not reintroduce continuous normal server-side raw IMU telemetry without an explicit architecture decision.
+
+Do not reduce IMU sampling back to 1 Hz without test evidence and an explicit architecture decision.
+

@@ -79,6 +79,8 @@ motion.acceleration.y
 motion.acceleration.z
 motion.gyroscope.x
 motion.orientation.pitch
+navigation.distance.traveled
+navigation.speed.maximum
 environment.temperature
 container.door.open
 ```
@@ -221,7 +223,7 @@ IoT payloads include:
 
 ```json
 {
-  "schemaVersion": 1
+  "schemaVersion": 2
 }
 ```
 

@@ -122,7 +122,7 @@ Shared conventions:
 
 ### `telemetry.md`
 
-Generic telemetry protocol.
+Lean extensible telemetry protocol: one-minute operational summaries, navigation/speed aggregates and event-specific high-frequency evidence.
 
 ### `events.md`
 
@@ -139,6 +139,10 @@ Shared conceptual domain model.
 ### `integration-flows.md`
 
 End-to-end flows showing how Mobile, Server and Dashboard communicate.
+
+### `kpis.md`
+
+Canonical MVP KPI definitions for speed, distance, movement time and event correlation.
 
 ---
 
@@ -181,3 +185,26 @@ Adding a new sensor, sensor metric or Device-generated event should normally req
 The server must accept unknown observation keys and unknown event types when they conform to the generic envelope.
 
 The shared contract changes only when the envelope itself needs a new capability.
+
+## Current MVP Telemetry Profile
+
+```text
+IMU raw acquisition:          50 Hz, Device-local
+GPS / ground speed:           up to 1 Hz, Device-local
+normal Server telemetry:      one-minute summaries
+normal network batch:         normally every minute
+event evidence:               high-frequency around detected events
+```
+
+Normal telemetry intentionally excludes continuous raw IMU history.
+
+MVP navigation summary keys:
+
+```text
+navigation.distance.traveled
+navigation.moving.duration
+navigation.stopped.duration
+navigation.speed.maximum
+```
+
+Motion events may additionally carry speed-at-event and short pre-event speed context.

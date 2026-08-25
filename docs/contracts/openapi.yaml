@@ -1,27 +1,25 @@
 openapi: 3.1.0
 info:
   title: SecureDelivery API
-  version: 1.0.0
-  description: >
-    Canonical HTTP contract for SecureDelivery. Device is the technical
-    domain term. SmartBox is a product-facing UI label only.
+  version: 1.1.0
+  description: Canonical HTTP contract for SecureDelivery. Device is the technical domain term; SmartBox is a product-facing
+    UI label. IoT schemaVersion 2 uses lean one-minute telemetry summaries and event-specific high-frequency evidence.
 servers:
-  - url: /api/v1
-
+- url: /api/v1
 tags:
-  - name: Auth
-  - name: Users
-  - name: Customers
-  - name: Devices
-  - name: Monitoring
-  - name: Telemetry
-  - name: Events
-  - name: Tickets
-
+- name: Auth
+- name: Users
+- name: Customers
+- name: Devices
+- name: Monitoring
+- name: Telemetry
+- name: Events
+- name: Tickets
 paths:
   /auth/login:
     post:
-      tags: [Auth]
+      tags:
+      - Auth
       operationId: login
       summary: Authenticate a user
       requestBody:
@@ -39,10 +37,10 @@ paths:
                 $ref: '#/components/schemas/AuthSession'
         '401':
           $ref: '#/components/responses/Unauthorized'
-
   /auth/refresh:
     post:
-      tags: [Auth]
+      tags:
+      - Auth
       operationId: refreshSession
       summary: Refresh an authenticated session
       responses:
@@ -52,19 +50,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthSession'
-
   /auth/logout:
     post:
-      tags: [Auth]
+      tags:
+      - Auth
       operationId: logout
       summary: End the current session
       responses:
         '204':
           description: Logged out
-
   /users/me:
     get:
-      tags: [Users]
+      tags:
+      - Users
       operationId: getCurrentUser
       summary: Get current user profile
       responses:
@@ -75,7 +73,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
     patch:
-      tags: [Users]
+      tags:
+      - Users
       operationId: updateCurrentUser
       summary: Update current user profile/preferences
       requestBody:
@@ -97,24 +96,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
-
   /users/me/change-password:
     post:
-      tags: [Users]
+      tags:
+      - Users
       operationId: changeOwnPassword
       summary: Change current user's password
       responses:
         '204':
           description: Password changed
-
   /users:
     get:
-      tags: [Users]
+      tags:
+      - Users
       operationId: listUsers
       summary: List users according to RBAC
       parameters:
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
       responses:
         '200':
           description: Users
@@ -123,7 +122,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedUsers'
     post:
-      tags: [Users]
+      tags:
+      - Users
       operationId: createUser
       summary: Create a user according to RBAC
       responses:
@@ -133,12 +133,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
-
   /users/{userId}:
     parameters:
-      - $ref: '#/components/parameters/UserId'
+    - $ref: '#/components/parameters/UserId'
     get:
-      tags: [Users]
+      tags:
+      - Users
       operationId: getUser
       responses:
         '200':
@@ -148,7 +148,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
     patch:
-      tags: [Users]
+      tags:
+      - Users
       operationId: updateUser
       responses:
         '200':
@@ -157,34 +158,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
-
   /users/{userId}/activate:
     post:
-      tags: [Users]
+      tags:
+      - Users
       operationId: activateUser
       responses:
         '204':
           description: User activated
-
   /users/{userId}/deactivate:
     post:
-      tags: [Users]
+      tags:
+      - Users
       operationId: deactivateUser
       responses:
         '204':
           description: User deactivated
-
   /users/{userId}/reset-password:
     post:
-      tags: [Users]
+      tags:
+      - Users
       operationId: resetUserPassword
       responses:
         '204':
           description: Password reset initiated/completed according to policy
-
   /users/{userId}/change-role:
     post:
-      tags: [Users]
+      tags:
+      - Users
       operationId: changeUserRole
       requestBody:
         required: true
@@ -192,7 +193,8 @@ paths:
           application/json:
             schema:
               type: object
-              required: [role]
+              required:
+              - role
               properties:
                 role:
                   $ref: '#/components/schemas/UserRole'
@@ -203,14 +205,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
-
   /customers:
     get:
-      tags: [Customers]
+      tags:
+      - Customers
       operationId: listCustomers
       parameters:
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
       responses:
         '200':
           description: Customers
@@ -219,7 +221,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedCustomers'
     post:
-      tags: [Customers]
+      tags:
+      - Customers
       operationId: createCustomer
       responses:
         '201':
@@ -228,12 +231,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Customer'
-
   /customers/{customerId}:
     parameters:
-      - $ref: '#/components/parameters/CustomerId'
+    - $ref: '#/components/parameters/CustomerId'
     get:
-      tags: [Customers]
+      tags:
+      - Customers
       operationId: getCustomer
       responses:
         '200':
@@ -243,7 +246,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Customer'
     patch:
-      tags: [Customers]
+      tags:
+      - Customers
       operationId: updateCustomer
       responses:
         '200':
@@ -252,24 +256,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Customer'
-
   /devices:
     get:
-      tags: [Devices]
+      tags:
+      - Devices
       operationId: listDevices
       summary: List Devices (displayed as SmartBoxes in product UI)
       parameters:
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/PageSize'
-        - name: customerId
-          in: query
-          schema:
-            type: string
-            format: uuid
-        - name: status
-          in: query
-          schema:
-            $ref: '#/components/schemas/DeviceStatus'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      - name: customerId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/DeviceStatus'
       responses:
         '200':
           description: Devices
@@ -278,7 +282,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedDevices'
     post:
-      tags: [Devices]
+      tags:
+      - Devices
       operationId: createDevice
       summary: Create a Device
       responses:
@@ -288,12 +293,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Device'
-
   /devices/{deviceId}:
     parameters:
-      - $ref: '#/components/parameters/DeviceId'
+    - $ref: '#/components/parameters/DeviceId'
     get:
-      tags: [Devices]
+      tags:
+      - Devices
       operationId: getDevice
       responses:
         '200':
@@ -303,7 +308,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Device'
     patch:
-      tags: [Devices]
+      tags:
+      - Devices
       operationId: updateDevice
       responses:
         '200':
@@ -313,23 +319,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/Device'
     delete:
-      tags: [Devices]
+      tags:
+      - Devices
       operationId: removeDevice
       summary: Remove a Device from active operation while preserving required history
       responses:
         '204':
           description: Device removed/deactivated according to retention policy
-
   /device-activations/{token}:
     get:
-      tags: [Devices]
+      tags:
+      - Devices
       operationId: validateDeviceActivation
       parameters:
-        - name: token
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Activation information
@@ -337,17 +344,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeviceActivation'
-
   /device-activations/{token}/confirm:
     post:
-      tags: [Devices]
+      tags:
+      - Devices
       operationId: confirmDeviceActivation
       parameters:
-        - name: token
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Activated Device
@@ -355,13 +362,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Device'
-
   /devices/{deviceId}/monitoring-sessions:
     post:
-      tags: [Monitoring]
+      tags:
+      - Monitoring
       operationId: startMonitoringSession
       parameters:
-        - $ref: '#/components/parameters/DeviceId'
+      - $ref: '#/components/parameters/DeviceId'
       requestBody:
         required: true
         content:
@@ -375,14 +382,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MonitoringSession'
-
   /devices/{deviceId}/monitoring-sessions/{sessionId}/stop:
     post:
-      tags: [Monitoring]
+      tags:
+      - Monitoring
       operationId: stopMonitoringSession
       parameters:
-        - $ref: '#/components/parameters/DeviceId'
-        - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/DeviceId'
+      - $ref: '#/components/parameters/SessionId'
       responses:
         '200':
           description: Monitoring session stopped
@@ -390,14 +397,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MonitoringSession'
-
   /devices/{deviceId}/telemetry/batches:
     post:
-      tags: [Telemetry]
+      tags:
+      - Telemetry
       operationId: ingestTelemetryBatch
-      summary: Ingest an idempotent generic telemetry batch
+      summary: Ingest idempotent compact telemetry period summaries
       parameters:
-        - $ref: '#/components/parameters/DeviceId'
+      - $ref: '#/components/parameters/DeviceId'
       requestBody:
         required: true
         content:
@@ -413,14 +420,16 @@ paths:
                 $ref: '#/components/schemas/IngestionAcknowledgement'
         '400':
           $ref: '#/components/responses/BadRequest'
-
+      description: Normal telemetry contains compact period summaries rather than continuous raw IMU samples. Offline
+        Devices may send multiple pending periods in one idempotent batch.
   /devices/{deviceId}/events:
     post:
-      tags: [Events]
+      tags:
+      - Events
       operationId: ingestDeviceEvent
       summary: Ingest an idempotent extensible Device-generated event
       parameters:
-        - $ref: '#/components/parameters/DeviceId'
+      - $ref: '#/components/parameters/DeviceId'
       requestBody:
         required: true
         content:
@@ -434,32 +443,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IngestionAcknowledgement'
-
+      description: Ingest an extensible Device-generated event with optional high-frequency evidence and speed/navigation
+        context.
   /events:
     get:
-      tags: [Events]
+      tags:
+      - Events
       operationId: listEvents
       parameters:
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/PageSize'
-        - name: deviceId
-          in: query
-          schema:
-            type: string
-            format: uuid
-        - name: customerId
-          in: query
-          schema:
-            type: string
-            format: uuid
-        - name: eventType
-          in: query
-          schema:
-            type: string
-        - name: severity
-          in: query
-          schema:
-            $ref: '#/components/schemas/EventSeverity'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      - name: deviceId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: customerId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: eventType
+        in: query
+        schema:
+          type: string
+      - name: severity
+        in: query
+        schema:
+          $ref: '#/components/schemas/EventSeverity'
       responses:
         '200':
           description: Events
@@ -467,18 +478,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedEvents'
-
   /events/{eventId}:
     get:
-      tags: [Events]
+      tags:
+      - Events
       operationId: getEvent
       parameters:
-        - name: eventId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Event
@@ -486,14 +497,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeviceEvent'
-
   /tickets:
     get:
-      tags: [Tickets]
+      tags:
+      - Tickets
       operationId: listTickets
       parameters:
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/PageSize'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
       responses:
         '200':
           description: Tickets
@@ -502,7 +513,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedTickets'
     post:
-      tags: [Tickets]
+      tags:
+      - Tickets
       operationId: createTicket
       responses:
         '201':
@@ -511,13 +523,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Ticket'
-
   /tickets/{ticketId}:
     get:
-      tags: [Tickets]
+      tags:
+      - Tickets
       operationId: getTicket
       parameters:
-        - $ref: '#/components/parameters/TicketId'
+      - $ref: '#/components/parameters/TicketId'
       responses:
         '200':
           description: Ticket
@@ -525,13 +537,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Ticket'
-
   /tickets/{ticketId}/messages:
     post:
-      tags: [Tickets]
+      tags:
+      - Tickets
       operationId: createTicketMessage
       parameters:
-        - $ref: '#/components/parameters/TicketId'
+      - $ref: '#/components/parameters/TicketId'
       responses:
         '201':
           description: Message persisted
@@ -539,13 +551,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TicketMessage'
-
   /tickets/{ticketId}/assign:
     post:
-      tags: [Tickets]
+      tags:
+      - Tickets
       operationId: assignTicket
       parameters:
-        - $ref: '#/components/parameters/TicketId'
+      - $ref: '#/components/parameters/TicketId'
       responses:
         '200':
           description: Ticket assigned
@@ -553,13 +565,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Ticket'
-
   /tickets/{ticketId}/resolve:
     post:
-      tags: [Tickets]
+      tags:
+      - Tickets
       operationId: resolveTicket
       parameters:
-        - $ref: '#/components/parameters/TicketId'
+      - $ref: '#/components/parameters/TicketId'
       responses:
         '200':
           description: Ticket resolved
@@ -567,7 +579,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Ticket'
-
 components:
   parameters:
     Page:
@@ -620,7 +631,6 @@ components:
       schema:
         type: string
         format: uuid
-
   responses:
     Unauthorized:
       description: Unauthorized
@@ -634,53 +644,73 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
   schemas:
     UserRole:
       type: string
-      enum: [SUPER_ADMIN, ADMIN, CUSTOMER]
-
+      enum:
+      - SUPER_ADMIN
+      - ADMIN
+      - CUSTOMER
     Theme:
       type: string
-      enum: [LIGHT, DARK, SYSTEM]
-
+      enum:
+      - LIGHT
+      - DARK
+      - SYSTEM
     DeviceStatus:
       type: string
-      enum: [PENDING_ACTIVATION, ACTIVE, INACTIVE]
-
+      enum:
+      - PENDING_ACTIVATION
+      - ACTIVE
+      - INACTIVE
     DeviceHealth:
       type: string
-      enum: [HEALTHY, WARNING, CRITICAL, UNKNOWN]
-
+      enum:
+      - HEALTHY
+      - WARNING
+      - CRITICAL
+      - UNKNOWN
     ConnectivityStatus:
       type: string
-      enum: [ONLINE, OFFLINE, UNKNOWN]
-
+      enum:
+      - ONLINE
+      - OFFLINE
+      - UNKNOWN
     MonitoringStatus:
       type: string
-      enum: [MONITORING, STOPPED, UNKNOWN]
-
+      enum:
+      - MONITORING
+      - STOPPED
+      - UNKNOWN
     EventSeverity:
       type: string
-      enum: [INFO, WARNING, CRITICAL]
-
+      enum:
+      - INFO
+      - WARNING
+      - CRITICAL
     IngestionStatus:
       type: string
-      enum: [ACCEPTED, ALREADY_ACCEPTED, REJECTED]
-
+      enum:
+      - ACCEPTED
+      - ALREADY_ACCEPTED
+      - REJECTED
     LoginRequest:
       type: object
-      required: [email, password]
+      required:
+      - email
+      - password
       properties:
         email:
           type: string
           format: email
         password:
           type: string
-
     AuthSession:
       type: object
-      required: [accessToken, expiresIn, user]
+      required:
+      - accessToken
+      - expiresIn
+      - user
       properties:
         accessToken:
           type: string
@@ -690,10 +720,14 @@ components:
           type: integer
         user:
           $ref: '#/components/schemas/User'
-
     User:
       type: object
-      required: [id, name, email, role, status]
+      required:
+      - id
+      - name
+      - email
+      - role
+      - status
       properties:
         id:
           type: string
@@ -707,13 +741,17 @@ components:
           $ref: '#/components/schemas/UserRole'
         status:
           type: string
-          enum: [ACTIVE, INACTIVE]
+          enum:
+          - ACTIVE
+          - INACTIVE
         theme:
           $ref: '#/components/schemas/Theme'
-
     Customer:
       type: object
-      required: [id, name, status]
+      required:
+      - id
+      - name
+      - status
       properties:
         id:
           type: string
@@ -722,11 +760,14 @@ components:
           type: string
         status:
           type: string
-          enum: [ACTIVE, INACTIVE]
-
+          enum:
+          - ACTIVE
+          - INACTIVE
     Location:
       type: object
-      required: [latitude, longitude]
+      required:
+      - latitude
+      - longitude
       properties:
         latitude:
           type: number
@@ -742,10 +783,10 @@ components:
         recordedAt:
           type: string
           format: date-time
-
     BatteryState:
       type: object
-      required: [levelPercent]
+      required:
+      - levelPercent
       properties:
         levelPercent:
           type: number
@@ -753,17 +794,16 @@ components:
           maximum: 100
         charging:
           type: boolean
-
     ConnectivityState:
       type: object
-      required: [status]
+      required:
+      - status
       properties:
         status:
           $ref: '#/components/schemas/ConnectivityStatus'
         type:
           type: string
           description: Extensible connection type such as CELLULAR, WIFI or UNKNOWN.
-
     DeviceState:
       type: object
       properties:
@@ -773,10 +813,14 @@ components:
           $ref: '#/components/schemas/ConnectivityState'
         monitoringStatus:
           $ref: '#/components/schemas/MonitoringStatus'
-
     Device:
       type: object
-      required: [id, code, displayName, status, health]
+      required:
+      - id
+      - code
+      - displayName
+      - status
+      - health
       properties:
         id:
           type: string
@@ -787,7 +831,9 @@ components:
           type: string
           description: Product-facing name; the UI may label the Device as a SmartBox.
         customerId:
-          type: [string, 'null']
+          type:
+          - string
+          - 'null'
           format: uuid
         status:
           $ref: '#/components/schemas/DeviceStatus'
@@ -800,16 +846,19 @@ components:
         connectivity:
           $ref: '#/components/schemas/ConnectivityState'
         lastSeenAt:
-          type: [string, 'null']
+          type:
+          - string
+          - 'null'
           format: date-time
         lastLocation:
           anyOf:
-            - $ref: '#/components/schemas/Location'
-            - type: 'null'
-
+          - $ref: '#/components/schemas/Location'
+          - type: 'null'
     DeviceActivation:
       type: object
-      required: [deviceId, status]
+      required:
+      - deviceId
+      - status
       properties:
         deviceId:
           type: string
@@ -820,11 +869,16 @@ components:
           type: string
         status:
           type: string
-          enum: [VALID, EXPIRED, ALREADY_ACTIVATED, INVALID]
-
+          enum:
+          - VALID
+          - EXPIRED
+          - ALREADY_ACTIVATED
+          - INVALID
     StartMonitoringSessionRequest:
       type: object
-      required: [clientSessionId, startedAt]
+      required:
+      - clientSessionId
+      - startedAt
       properties:
         clientSessionId:
           type: string
@@ -832,10 +886,13 @@ components:
         startedAt:
           type: string
           format: date-time
-
     MonitoringSession:
       type: object
-      required: [id, deviceId, status, startedAt]
+      required:
+      - id
+      - deviceId
+      - status
+      - startedAt
       properties:
         id:
           type: string
@@ -845,86 +902,75 @@ components:
           format: uuid
         status:
           type: string
-          enum: [ACTIVE, STOPPED]
+          enum:
+          - ACTIVE
+          - STOPPED
         startedAt:
           type: string
           format: date-time
         finishedAt:
-          type: [string, 'null']
+          type:
+          - string
+          - 'null'
           format: date-time
-
     Observation:
       type: object
-      required: [key, value]
+      required:
+      - key
+      - value
       additionalProperties: false
       properties:
         key:
           type: string
-          pattern: '^[a-z0-9]+(?:[._-][a-z0-9]+)+$'
+          pattern: ^[a-z0-9]+(?:[._-][a-z0-9]+)+$
         value:
           oneOf:
-            - type: number
-            - type: string
-            - type: boolean
+          - type: number
+          - type: string
+          - type: boolean
         unit:
           type: string
-
-    TelemetrySample:
-      type: object
-      required: [sequence, sampledAt, observations]
-      properties:
-        sequence:
-          type: integer
-          minimum: 0
-        sampledAt:
-          type: string
-          format: date-time
-        location:
-          $ref: '#/components/schemas/Location'
-        observations:
-          type: array
-          items:
-            $ref: '#/components/schemas/Observation'
-
     TelemetryBatch:
       type: object
       required:
-        [schemaVersion, batchId, monitoringSessionId, startedAt, finishedAt, samples]
+      - schemaVersion
+      - batchId
+      - monitoringSessionId
+      - periods
+      additionalProperties: false
       properties:
         schemaVersion:
           type: integer
-          minimum: 1
+          const: 2
+          description: Current lean telemetry envelope schema version.
         batchId:
           type: string
           format: uuid
         monitoringSessionId:
           type: string
           format: uuid
-        startedAt:
-          type: string
-          format: date-time
-        finishedAt:
-          type: string
-          format: date-time
-        deviceState:
-          $ref: '#/components/schemas/DeviceState'
-        samples:
+        periods:
           type: array
+          minItems: 1
           items:
-            $ref: '#/components/schemas/TelemetrySample'
-
+            $ref: '#/components/schemas/TelemetryPeriodSummary'
     Detector:
       type: object
-      required: [name, version]
+      required:
+      - name
+      - version
       properties:
         name:
           type: string
         version:
           type: string
-
     EventEvidence:
       type: object
-      required: [startedAt, finishedAt, samples]
+      required:
+      - startedAt
+      - finishedAt
+      - samples
+      additionalProperties: false
       properties:
         startedAt:
           type: string
@@ -935,16 +981,23 @@ components:
         samples:
           type: array
           items:
-            $ref: '#/components/schemas/TelemetrySample'
-
+            $ref: '#/components/schemas/EvidenceSample'
+          description: High-frequency event-specific evidence samples.
     DeviceEvent:
       type: object
       required:
-        [schemaVersion, eventId, monitoringSessionId, eventType, severity, occurredAt, detector]
+      - schemaVersion
+      - eventId
+      - monitoringSessionId
+      - eventType
+      - severity
+      - occurredAt
+      - detector
       properties:
         schemaVersion:
           type: integer
-          minimum: 1
+          const: 2
+          description: Current Device event envelope schema version.
         eventId:
           type: string
           format: uuid
@@ -958,7 +1011,7 @@ components:
         eventType:
           type: string
           description: Open namespaced Device-generated event type.
-          pattern: '^[a-z0-9]+(?:[._-][a-z0-9]+)+$'
+          pattern: ^[a-z0-9]+(?:[._-][a-z0-9]+)+$
         severity:
           $ref: '#/components/schemas/EventSeverity'
         occurredAt:
@@ -972,12 +1025,17 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Observation'
+          description: Generic event attributes. Motion events should include reliable navigation context when available,
+            such as navigation.speed.at_event, navigation.speed.average_5s_before, navigation.speed.maximum_10s_before
+            and navigation.moving.
         evidence:
           $ref: '#/components/schemas/EventEvidence'
-
     IngestionAcknowledgement:
       type: object
-      required: [id, status, receivedAt]
+      required:
+      - id
+      - status
+      - receivedAt
       properties:
         id:
           type: string
@@ -987,10 +1045,13 @@ components:
         receivedAt:
           type: string
           format: date-time
-
     Ticket:
       type: object
-      required: [id, customerId, subject, status]
+      required:
+      - id
+      - customerId
+      - subject
+      - status
       properties:
         id:
           type: string
@@ -1002,14 +1063,25 @@ components:
           type: string
         status:
           type: string
-          enum: [OPEN, IN_PROGRESS, WAITING_CUSTOMER, RESOLVED, CLOSED]
+          enum:
+          - OPEN
+          - IN_PROGRESS
+          - WAITING_CUSTOMER
+          - RESOLVED
+          - CLOSED
         assignedUserId:
-          type: [string, 'null']
+          type:
+          - string
+          - 'null'
           format: uuid
-
     TicketMessage:
       type: object
-      required: [id, ticketId, senderUserId, message, sentAt]
+      required:
+      - id
+      - ticketId
+      - senderUserId
+      - message
+      - sentAt
       properties:
         id:
           type: string
@@ -1025,64 +1097,90 @@ components:
         sentAt:
           type: string
           format: date-time
-
     Pagination:
       type: object
-      required: [page, pageSize, totalItems, totalPages]
+      required:
+      - page
+      - pageSize
+      - totalItems
+      - totalPages
       properties:
-        page: {type: integer}
-        pageSize: {type: integer}
-        totalItems: {type: integer}
-        totalPages: {type: integer}
-
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
     PaginatedUsers:
       type: object
-      required: [items, pagination]
+      required:
+      - items
+      - pagination
       properties:
         items:
           type: array
-          items: {$ref: '#/components/schemas/User'}
-        pagination: {$ref: '#/components/schemas/Pagination'}
-
+          items:
+            $ref: '#/components/schemas/User'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
     PaginatedCustomers:
       type: object
-      required: [items, pagination]
+      required:
+      - items
+      - pagination
       properties:
         items:
           type: array
-          items: {$ref: '#/components/schemas/Customer'}
-        pagination: {$ref: '#/components/schemas/Pagination'}
-
+          items:
+            $ref: '#/components/schemas/Customer'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
     PaginatedDevices:
       type: object
-      required: [items, pagination]
+      required:
+      - items
+      - pagination
       properties:
         items:
           type: array
-          items: {$ref: '#/components/schemas/Device'}
-        pagination: {$ref: '#/components/schemas/Pagination'}
-
+          items:
+            $ref: '#/components/schemas/Device'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
     PaginatedEvents:
       type: object
-      required: [items, pagination]
+      required:
+      - items
+      - pagination
       properties:
         items:
           type: array
-          items: {$ref: '#/components/schemas/DeviceEvent'}
-        pagination: {$ref: '#/components/schemas/Pagination'}
-
+          items:
+            $ref: '#/components/schemas/DeviceEvent'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
     PaginatedTickets:
       type: object
-      required: [items, pagination]
+      required:
+      - items
+      - pagination
       properties:
         items:
           type: array
-          items: {$ref: '#/components/schemas/Ticket'}
-        pagination: {$ref: '#/components/schemas/Pagination'}
-
+          items:
+            $ref: '#/components/schemas/Ticket'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
     ErrorResponse:
       type: object
-      required: [statusCode, code, message, requestId, timestamp]
+      required:
+      - statusCode
+      - code
+      - message
+      - requestId
+      - timestamp
       properties:
         statusCode:
           type: integer
@@ -1098,3 +1196,47 @@ components:
         timestamp:
           type: string
           format: date-time
+    TelemetryPeriodSummary:
+      type: object
+      required:
+      - periodStartedAt
+      - periodFinishedAt
+      - observations
+      additionalProperties: false
+      properties:
+        periodStartedAt:
+          type: string
+          format: date-time
+        periodFinishedAt:
+          type: string
+          format: date-time
+        deviceState:
+          $ref: '#/components/schemas/DeviceState'
+        lastLocation:
+          anyOf:
+          - $ref: '#/components/schemas/Location'
+          - type: 'null'
+        observations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Observation'
+          description: Compact period-level observations. MVP navigation keys include navigation.distance.traveled,
+            navigation.moving.duration, navigation.stopped.duration and navigation.speed.maximum.
+    EvidenceSample:
+      type: object
+      required:
+      - sequence
+      - sampledAt
+      - observations
+      additionalProperties: false
+      properties:
+        sequence:
+          type: integer
+          minimum: 0
+        sampledAt:
+          type: string
+          format: date-time
+        observations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Observation'

@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Superseded by ADR-007
+
+## Supersession Note
+
+ADR-007 keeps the 50 Hz Device-side IMU decision but replaces the previous 1 Hz normal server telemetry snapshot with compact one-minute telemetry summaries.
 
 ## Context
 

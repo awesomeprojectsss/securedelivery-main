@@ -103,6 +103,7 @@ Main responsibilities:
 - telemetry
 - events
 - event evidence
+- speed and distance operational KPIs
 - device health
 - support tickets
 - realtime support chat
@@ -400,33 +401,23 @@ When monitoring is enabled:
 
 # Sensor Collection
 
-Sensor acquisition, normal telemetry persistence and network transmission use different frequencies.
+Sensor acquisition, normal telemetry and network transmission have intentionally different rates.
 
 Initial MVP profile:
 
 ```text
-Raw IMU sampling:          50 Hz (~20 ms between samples)
-Event detection:           high-frequency local processing/windows
-Normal telemetry snapshot: 1 Hz
-GPS/location snapshot:     up to 1 Hz when available/required
-Network telemetry batch:   every 1 minute
+Raw IMU sampling:                50 Hz (~20 ms)
+Event detection:                 high-frequency local processing
+GPS / ground-speed observation:  up to 1 Hz
+Normal server telemetry:         1-minute summary
+Network batch:                   normally every 1 minute
 ```
 
-The 50 Hz IMU rate is an initial baseline and must remain configurable.
+Raw IMU data is primarily Device-local.
 
-A 1 Hz IMU rate is not sufficient for precise impact/fall detection because a short event may occur entirely between two samples.
+The Server does not normally receive continuous accelerometer/gyroscope history when no relevant event is detected.
 
-Possible Device data sources include:
-
-- accelerometer
-- gyroscope
-- GPS
-- battery
-- connectivity
-
-Normal high-frequency raw IMU data should not be continuously uploaded.
-
-The Device should use high-frequency data locally and preserve high-frequency samples around detected events as audit evidence.
+The Device keeps a rolling high-frequency buffer so abnormal events can preserve precise evidence.
 
 Temperature remains outside the MVP.
 
@@ -513,33 +504,100 @@ Evidence supports:
 
 # Telemetry Store-and-Forward
 
-Sensor acquisition and network transmission happen at intentionally different frequencies.
+Normal telemetry is intentionally compact.
 
-Initial MVP strategy:
+Conceptual flow:
 
 ```text
-Raw IMU acquisition: 50 Hz
-        ↓
-Local event detector + rolling evidence buffer
-        ↓
-Normal telemetry snapshot: 1 Hz
-        ↓
-Local durable storage
-        ↓
-Approximately 60 normal snapshots
-        ↓
-1-minute telemetry batch
-        ↓
-Synchronization attempt
-        ↓
-SecureDelivery Server
+IMU 50 Hz                         GPS/speed up to 1 Hz
+   │                                      │
+   └──────────── Device processing ───────┘
+                     │
+           event detection + rolling buffer
+                     │
+            1-minute operational summary
+                     │
+              durable local storage
+                     │
+                batch / retry
+                     │
+              SecureDelivery Server
 ```
 
-Critical events are persisted locally with high-frequency evidence and may be synchronized earlier than the normal one-minute batch when connectivity is available.
+The normal one-minute summary contains operationally useful information such as:
 
-The Device must not couple sensor callbacks directly to network requests.
+- latest valid location;
+- battery;
+- connectivity;
+- monitoring status;
+- distance traveled in the period;
+- moving duration;
+- stopped duration;
+- maximum speed.
 
-Local persistence and store-and-forward remain mandatory.
+The Server derives average moving speed from total distance and total moving duration.
+
+High-frequency motion data is synchronized primarily as evidence when an event is detected.
+
+Offline period summaries remain stored locally and are sent later through the same idempotent batch contract.
+
+# MVP Navigation and Speed Telemetry
+
+Speed is an official MVP telemetry capability.
+
+Preferred source:
+
+```text
+GNSS / operating-system ground speed
+```
+
+The Device observes GPS/speed at up to 1 Hz but normally sends only one-minute aggregates to the Server.
+
+Canonical normal telemetry metrics:
+
+```text
+navigation.distance.traveled   [m]
+navigation.moving.duration     [s]
+navigation.stopped.duration    [s]
+navigation.speed.maximum       [m/s]
+```
+
+The Server derives:
+
+```text
+average moving speed =
+total distance traveled / total moving duration
+```
+
+This supports KPIs such as:
+
+- average moving speed;
+- maximum speed;
+- distance traveled;
+- moving/stopped time;
+- events per 100 km;
+- event rate by speed range.
+
+For detected motion events, the Device should attach reliable speed context when available:
+
+```text
+navigation.speed.at_event
+navigation.speed.average_5s_before
+navigation.speed.maximum_10s_before
+navigation.moving
+```
+
+Speed correlation must not be presented as proven causality without additional evidence.
+
+Initial movement/stopped threshold:
+
+```text
+1.5 m/s (~5.4 km/h)
+```
+
+The threshold is configurable and subject to calibration.
+
+Full route tracking remains outside the MVP.
 
 # Offline-First Requirements
 
@@ -640,9 +698,9 @@ Core rules:
 
 1. `Device` is the canonical technical term.
 2. `SmartBox` is a product-facing UI label.
-3. Sensor measurements use generic namespaced observations.
+3. Sensor and derived telemetry measurements use generic namespaced observations.
 4. Device-generated `eventType` values are open namespaced strings.
-5. Unknown valid sensor keys and event types must remain ingestible.
+5. Unknown valid observation keys and event types must remain ingestible.
 6. Clients must not invent payloads independently from the canonical contract.
 7. Breaking contract changes must be explicitly versioned and coordinated.
 
@@ -787,13 +845,14 @@ The MVP should focus on:
 - mobile IoT monitoring
 - 50 Hz raw IMU sampling with configurable rates
 - on-Device event detection
-- 1 Hz normal telemetry snapshots with local durable storage
-- 1-minute normal telemetry batching
+- 1-minute compact telemetry summaries with local durable store-and-forward
+- 1-minute normal telemetry summaries/batching
 - store-and-forward
 - retry
 - idempotent telemetry ingestion
 - idempotent event ingestion
 - event evidence
+- speed and distance operational KPIs
 - latest location
 - battery
 - connectivity

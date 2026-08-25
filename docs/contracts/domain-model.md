@@ -92,29 +92,31 @@ Future deliveries may reference or own MonitoringSessions according to a later d
 
 ## TelemetryBatch
 
-Idempotent collection of normal telemetry snapshots.
+Idempotent transport envelope containing one or more compact telemetry period summaries.
 
-Initial profile:
+An online Device normally batches one one-minute period.
 
-```text
-~1 snapshot/second
-~1 batch/minute
-```
+An offline Device may synchronize multiple pending periods in one request.
 
-The batch does not normally contain the complete 50 Hz raw IMU stream.
+The batch does not contain the continuous 50 Hz raw IMU stream.
 
 ---
 
-## TelemetrySample
+## TelemetryPeriodSummary
 
-Lower-rate operational snapshot.
+Compact normal telemetry for one period, initially one minute.
 
 May contain:
 
-- location
-- generic sensor observations
-- timestamp
-- sequence
+- latest valid location;
+- Device state;
+- distance traveled;
+- moving duration;
+- stopped duration;
+- maximum speed;
+- future generic observations with business value.
+
+Raw IMU history is not normal telemetry.
 
 ---
 
@@ -211,7 +213,7 @@ Customer
    ├── Device[]
    │      └── MonitoringSession[]
    │             ├── TelemetryBatch[]
-   │             │      └── TelemetrySample[]
+   │             │      └── TelemetryPeriodSummary[]
    │             │             └── Observation[]
    │             └── DeviceEvent[]
    │                    ├── attributes[]

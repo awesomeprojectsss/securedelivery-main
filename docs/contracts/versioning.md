@@ -18,13 +18,29 @@ Telemetry and Device-generated event envelopes carry:
 
 ```json
 {
-  "schemaVersion": 1
+  "schemaVersion": 2
 }
 ```
 
 This version is independent from `/api/v1`.
 
 ---
+
+## Current IoT Schema
+
+Current telemetry and Device-event envelope version:
+
+```text
+schemaVersion = 2
+```
+
+Version 2 introduces the lean telemetry model:
+
+- normal one-minute period summaries;
+- no continuous normal server-side raw IMU samples;
+- navigation/speed summary metrics;
+- event-specific high-frequency evidence;
+- event speed context.
 
 ## Additive Changes
 

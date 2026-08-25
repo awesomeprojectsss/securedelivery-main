@@ -71,9 +71,20 @@ Detector versioning is critical for:
 
 ## Event Attributes
 
-Event-specific calculated values use generic attributes.
+Event-specific values use generic attributes.
 
-Example:
+For motion events, the Device should include useful navigation context when reliable speed data is available.
+
+MVP navigation context:
+
+```text
+navigation.speed.at_event
+navigation.speed.average_5s_before
+navigation.speed.maximum_10s_before
+navigation.moving
+```
+
+Examples:
 
 ```json
 [
@@ -88,14 +99,30 @@ Example:
     "unit": "deg"
   },
   {
-    "key": "motion.duration",
-    "value": 1.42,
-    "unit": "s"
+    "key": "navigation.speed.at_event",
+    "value": 14.1,
+    "unit": "m/s"
+  },
+  {
+    "key": "navigation.speed.average_5s_before",
+    "value": 13.8,
+    "unit": "m/s"
+  },
+  {
+    "key": "navigation.speed.maximum_10s_before",
+    "value": 15.2,
+    "unit": "m/s"
+  },
+  {
+    "key": "navigation.moving",
+    "value": true
   }
 ]
 ```
 
----
+Speed context must only be included when the Device considers the underlying GNSS data valid enough for interpretation.
+
+This context supports correlation analysis without requiring full per-second route/speed history on the Server.
 
 ## Evidence Window
 
@@ -129,21 +156,24 @@ Example:
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "eventId": "019912bd-5c67-7cab-a6f7-82033ec24880",
   "monitoringSessionId": "019912a6-b01c-7ba4-b842-f64abfe20f02",
   "eventType": "motion.critical_inclination",
   "severity": "WARNING",
   "occurredAt": "2026-08-25T00:10:34.451Z",
+
   "location": {
     "latitude": -23.55052,
     "longitude": -46.63331,
     "accuracyMeters": 8.1
   },
+
   "detector": {
     "name": "inclination-detector",
     "version": "1.0.0"
   },
+
   "attributes": [
     {
       "key": "motion.peak_pitch",
@@ -151,16 +181,27 @@ Example:
       "unit": "deg"
     },
     {
-      "key": "detector.configured_threshold",
-      "value": 35.0,
-      "unit": "deg"
+      "key": "navigation.speed.at_event",
+      "value": 14.1,
+      "unit": "m/s"
+    },
+    {
+      "key": "navigation.speed.average_5s_before",
+      "value": 13.8,
+      "unit": "m/s"
+    },
+    {
+      "key": "navigation.moving",
+      "value": true
     }
   ],
+
   "evidence": {
     "startedAt": "2026-08-25T00:10:32.451Z",
     "finishedAt": "2026-08-25T00:10:36.451Z",
     "samples": [
       {
+        "sequence": 0,
         "sampledAt": "2026-08-25T00:10:34.451Z",
         "observations": [
           {
@@ -180,7 +221,9 @@ Example:
 }
 ```
 
----
+The normal telemetry contract does not contain this high-frequency evidence stream.
+
+High-frequency evidence exists specifically for relevant detected events.
 
 ## Idempotency
 
