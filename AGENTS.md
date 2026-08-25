@@ -72,6 +72,83 @@ Do not create `/smartboxes` API routes.
 
 ---
 
+## Workspace Refresh Before Agent Work
+
+When this repository is being used as the SecureDelivery workspace with Git submodules, refresh local Git state before reading documentation, planning cross-repository work, or modifying code.
+
+Preferred commands:
+
+### Linux / macOS / Git Bash
+
+```bash
+./scripts/refresh-local-workspace.sh
+```
+
+### PowerShell
+
+```powershell
+.\scripts\refresh-local-workspace.ps1
+```
+
+The refresh process exists so agents work with the latest safely available remote information across:
+
+- the `securedelivery-main` repository;
+- `securedelivery-server`;
+- `securedelivery-mobile`;
+- `securedelivery-dashboard`;
+- recursively initialized Git submodules.
+
+The refresh script may:
+
+- fetch remote references;
+- prune deleted remote references;
+- fetch tags;
+- fast-forward local branches when they are strictly behind their matching remote branch;
+- initialize and refresh submodules.
+
+The refresh script must **not**:
+
+- push;
+- force-push;
+- create commits;
+- rebase;
+- reset with `--hard`;
+- create merge commits;
+- discard local changes;
+- automatically resolve diverged branches.
+
+If a branch:
+
+- contains local commits ahead of the remote;
+- has diverged from the remote;
+- is checked out in another worktree;
+- or cannot be safely fast-forwarded;
+
+preserve it and report the condition instead of modifying history.
+
+If the current working tree contains uncommitted changes, do not perform an automatic fast-forward that could interfere with those changes.
+
+### Agent Rule
+
+Before relying on local `project.md`, contracts, ADRs, or repository documentation for cross-repository decisions:
+
+1. determine whether this checkout is the main SecureDelivery workspace;
+2. if the refresh scripts are available, run the appropriate refresh script;
+3. inspect any warnings produced by the script;
+4. do not assume a diverged or locally-ahead branch matches the latest remote state;
+5. only after refresh, read:
+   - `docs/project.md`;
+   - `docs/contracts/`;
+   - shared ADRs;
+   - the target repository `AGENTS.md`;
+   - the target repository `docs/architecture.md`.
+
+A successful `git fetch` updates remote-tracking references, but local branches may still differ. The refresh script intentionally updates local branches only when the change is a safe fast-forward.
+
+Do not bypass this policy by running destructive Git commands merely to make a branch appear current.
+
+---
+
 ## Shared Contract Policy
 
 `docs/contracts/` is authoritative.
