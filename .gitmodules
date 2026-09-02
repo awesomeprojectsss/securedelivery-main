@@ -1,0 +1,9 @@
+[submodule "securedelivery-server"]
+	path = securedelivery-server
+	url = https://github.com/awesomeprojectsss/securedelivery-server.git
+[submodule "securedelivery-mobile"]
+	path = securedelivery-mobile
+	url = https://github.com/awesomeprojectsss/securedelivery-mobile.git
+[submodule "securedelivery-dashboard"]
+	path = securedelivery-dashboard
+	url = https://github.com/awesomeprojectsss/securedelivery-dashboard.git

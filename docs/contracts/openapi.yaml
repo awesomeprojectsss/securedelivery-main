@@ -1,23 +1,42 @@
 openapi: 3.1.0
 info:
   title: SecureDelivery API
-  version: 1.1.0
+  version: 1.3.0
+  license:
+    name: GNU General Public License v3.0
+    identifier: GPL-3.0-only
   description: Canonical HTTP contract for SecureDelivery. Device is the technical domain term; SmartBox is a product-facing
-    UI label. IoT schemaVersion 2 uses lean one-minute telemetry summaries and event-specific high-frequency evidence.
+    UI label. Telemetry schemaVersion 3 uses lean one-minute summaries and explicit navigation quality. Device-event
+    schemaVersion 2 carries event-specific high-frequency evidence.
 servers:
 - url: /api/v1
+security:
+- UserBearerAuth: []
 tags:
 - name: Auth
+  description: Human authentication and session lifecycle.
 - name: Users
+  description: Human users and RBAC-governed account operations.
 - name: Customers
+  description: Customer tenant resources.
 - name: Devices
+  description: Technical Device resources, activation and credential provisioning.
 - name: Monitoring
+  description: Device-authenticated MonitoringSession synchronization.
 - name: Telemetry
+  description: Device-authenticated lean telemetry ingestion.
 - name: Events
+  description: Device event ingestion and authorized event queries.
 - name: Tickets
+  description: Persistent support tickets and messages.
+- name: DeviceRequests
+  description: Customer Device requests displayed as SmartBox Requests.
+- name: Notifications
+  description: Persistent human notifications and read state.
 paths:
   /auth/login:
     post:
+      security: []
       tags:
       - Auth
       operationId: login
@@ -39,10 +58,17 @@ paths:
           $ref: '#/components/responses/Unauthorized'
   /auth/refresh:
     post:
+      security: []
       tags:
       - Auth
       operationId: refreshSession
       summary: Refresh an authenticated session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshSessionRequest'
       responses:
         '200':
           description: Session refreshed
@@ -50,15 +76,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /auth/logout:
     post:
       tags:
       - Auth
       operationId: logout
       summary: End the current session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
       responses:
         '204':
           description: Logged out
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /users/me:
     get:
       tags:
@@ -66,6 +102,8 @@ paths:
       operationId: getCurrentUser
       summary: Get current user profile
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Current user
           content:
@@ -90,6 +128,8 @@ paths:
                 theme:
                   $ref: '#/components/schemas/Theme'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Updated user
           content:
@@ -102,7 +142,15 @@ paths:
       - Users
       operationId: changeOwnPassword
       summary: Change current user's password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '204':
           description: Password changed
   /users:
@@ -115,6 +163,8 @@ paths:
       - $ref: '#/components/parameters/Page'
       - $ref: '#/components/parameters/PageSize'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Users
           content:
@@ -126,7 +176,15 @@ paths:
       - Users
       operationId: createUser
       summary: Create a user according to RBAC
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '201':
           description: User created
           content:
@@ -140,7 +198,10 @@ paths:
       tags:
       - Users
       operationId: getUser
+      summary: Get one user according to RBAC
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: User
           content:
@@ -151,7 +212,16 @@ paths:
       tags:
       - Users
       operationId: updateUser
+      summary: Update one user according to RBAC
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Updated user
           content:
@@ -159,46 +229,67 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
   /users/{userId}/activate:
+    parameters:
+    - $ref: '#/components/parameters/UserId'
     post:
       tags:
       - Users
       operationId: activateUser
+      summary: Activate a user according to RBAC
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '204':
           description: User activated
   /users/{userId}/deactivate:
+    parameters:
+    - $ref: '#/components/parameters/UserId'
     post:
       tags:
       - Users
       operationId: deactivateUser
+      summary: Deactivate a user according to RBAC restrictions
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '204':
           description: User deactivated
   /users/{userId}/reset-password:
+    parameters:
+    - $ref: '#/components/parameters/UserId'
     post:
       tags:
       - Users
       operationId: resetUserPassword
-      responses:
-        '204':
-          description: Password reset initiated/completed according to policy
-  /users/{userId}/change-role:
-    post:
-      tags:
-      - Users
-      operationId: changeUserRole
+      summary: Reset an allowed user's password
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required:
-              - role
-              properties:
-                role:
-                  $ref: '#/components/schemas/UserRole'
+              $ref: '#/components/schemas/ResetPasswordRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '204':
+          description: Password reset initiated/completed according to policy
+  /users/{userId}/change-role:
+    parameters:
+    - $ref: '#/components/parameters/UserId'
+    post:
+      tags:
+      - Users
+      operationId: changeUserRole
+      summary: Change an allowed user's role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeRoleRequest'
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: User role changed
           content:
@@ -210,10 +301,13 @@ paths:
       tags:
       - Customers
       operationId: listCustomers
+      summary: List Customers according to RBAC
       parameters:
       - $ref: '#/components/parameters/Page'
       - $ref: '#/components/parameters/PageSize'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Customers
           content:
@@ -224,7 +318,16 @@ paths:
       tags:
       - Customers
       operationId: createCustomer
+      summary: Create a Customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '201':
           description: Customer created
           content:
@@ -238,7 +341,10 @@ paths:
       tags:
       - Customers
       operationId: getCustomer
+      summary: Get one authorized Customer
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Customer
           content:
@@ -249,7 +355,16 @@ paths:
       tags:
       - Customers
       operationId: updateCustomer
+      summary: Update one authorized Customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Customer updated
           content:
@@ -281,12 +396,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedDevices'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     post:
       tags:
       - Devices
       operationId: createDevice
       summary: Create a Device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeviceRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '201':
           description: Device created
           content:
@@ -300,7 +425,10 @@ paths:
       tags:
       - Devices
       operationId: getDevice
+      summary: Get one authorized Device
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Device
           content:
@@ -311,7 +439,16 @@ paths:
       tags:
       - Devices
       operationId: updateDevice
+      summary: Update one Device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeviceRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Device updated
           content:
@@ -324,49 +461,86 @@ paths:
       operationId: removeDevice
       summary: Remove a Device from active operation while preserving required history
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '204':
           description: Device removed/deactivated according to retention policy
-  /device-activations/{token}:
-    get:
+  /device-activations/validate:
+    post:
+      security: []
       tags:
       - Devices
       operationId: validateDeviceActivation
-      parameters:
-      - name: token
-        in: path
+      summary: Validate short-lived Device activation material
+      requestBody:
         required: true
-        schema:
-          type: string
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceActivationTokenRequest'
       responses:
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '200':
           description: Activation information
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeviceActivation'
-  /device-activations/{token}/confirm:
+  /device-activations/confirm:
     post:
       tags:
       - Devices
       operationId: confirmDeviceActivation
-      parameters:
-      - name: token
-        in: path
+      summary: Confirm activation as an authenticated Customer
+      requestBody:
         required: true
-        schema:
-          type: string
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceActivationTokenRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Activated Device
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Device'
+  /device-credentials/exchange:
+    post:
+      security: []
+      tags:
+      - Devices
+      operationId: provisionDeviceCredential
+      summary: Exchange confirmed activation material once for a Device credential
+      description: The short-lived activation token is sent only in the JSON body for this one-time exchange. It is not a human or Device bearer credential and must never appear in paths, query strings or logs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceActivationTokenRequest'
+      responses:
+        '200':
+          description: One-time Device credential provisioned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceCredentialProvisioning'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /devices/{deviceId}/monitoring-sessions:
     post:
+      security:
+      - DeviceBearerAuth: []
       tags:
       - Monitoring
       operationId: startMonitoringSession
+      summary: Idempotently create or reconcile a Device-generated MonitoringSession
       parameters:
       - $ref: '#/components/parameters/DeviceId'
       requestBody:
@@ -376,20 +550,41 @@ paths:
             schema:
               $ref: '#/components/schemas/StartMonitoringSessionRequest'
       responses:
+        '200':
+          description: Existing MonitoringSession reconciled idempotently
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonitoringSession'
         '201':
           description: Monitoring session started
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/MonitoringSession'
-  /devices/{deviceId}/monitoring-sessions/{sessionId}/stop:
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /devices/{deviceId}/monitoring-sessions/{monitoringSessionId}/stop:
     post:
+      security:
+      - DeviceBearerAuth: []
       tags:
       - Monitoring
       operationId: stopMonitoringSession
+      summary: Idempotently stop a MonitoringSession at the Device-observed time
       parameters:
       - $ref: '#/components/parameters/DeviceId'
-      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/MonitoringSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StopMonitoringSessionRequest'
       responses:
         '200':
           description: Monitoring session stopped
@@ -397,8 +592,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MonitoringSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /devices/{deviceId}/telemetry/batches:
     post:
+      security:
+      - DeviceBearerAuth: []
       tags:
       - Telemetry
       operationId: ingestTelemetryBatch
@@ -420,10 +623,16 @@ paths:
                 $ref: '#/components/schemas/IngestionAcknowledgement'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
       description: Normal telemetry contains compact period summaries rather than continuous raw IMU samples. Offline
         Devices may send multiple pending periods in one idempotent batch.
   /devices/{deviceId}/events:
     post:
+      security:
+      - DeviceBearerAuth: []
       tags:
       - Events
       operationId: ingestDeviceEvent
@@ -443,13 +652,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IngestionAcknowledgement'
-      description: Ingest an extensible Device-generated event with optional high-frequency evidence and speed/navigation
-        context.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      description: Ingest an extensible Device-generated event with required high-frequency evidence and optional reliable speed/navigation context.
   /events:
     get:
       tags:
       - Events
       operationId: listEvents
+      summary: List authorized Device events
       parameters:
       - $ref: '#/components/parameters/Page'
       - $ref: '#/components/parameters/PageSize'
@@ -472,6 +687,8 @@ paths:
         schema:
           $ref: '#/components/schemas/EventSeverity'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Events
           content:
@@ -483,6 +700,7 @@ paths:
       tags:
       - Events
       operationId: getEvent
+      summary: Get one authorized Device event
       parameters:
       - name: eventId
         in: path
@@ -491,6 +709,8 @@ paths:
           type: string
           format: uuid
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Event
           content:
@@ -502,10 +722,13 @@ paths:
       tags:
       - Tickets
       operationId: listTickets
+      summary: List authorized support tickets
       parameters:
       - $ref: '#/components/parameters/Page'
       - $ref: '#/components/parameters/PageSize'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Tickets
           content:
@@ -516,7 +739,16 @@ paths:
       tags:
       - Tickets
       operationId: createTicket
+      summary: Create a support ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTicketRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '201':
           description: Ticket created
           content:
@@ -528,9 +760,12 @@ paths:
       tags:
       - Tickets
       operationId: getTicket
+      summary: Get one authorized support ticket
       parameters:
       - $ref: '#/components/parameters/TicketId'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Ticket
           content:
@@ -538,13 +773,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/Ticket'
   /tickets/{ticketId}/messages:
+    get:
+      tags:
+      - Tickets
+      operationId: listTicketMessages
+      summary: List authoritative persisted ticket message history
+      parameters:
+      - $ref: '#/components/parameters/TicketId'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '200':
+          description: Paginated ticket messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTicketMessages'
     post:
       tags:
       - Tickets
       operationId: createTicketMessage
+      summary: Persist a support ticket message
       parameters:
       - $ref: '#/components/parameters/TicketId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTicketMessageRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '201':
           description: Message persisted
           content:
@@ -556,9 +818,18 @@ paths:
       tags:
       - Tickets
       operationId: assignTicket
+      summary: Assign a support ticket to an Administrator
       parameters:
       - $ref: '#/components/parameters/TicketId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignTicketRequest'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Ticket assigned
           content:
@@ -570,16 +841,203 @@ paths:
       tags:
       - Tickets
       operationId: resolveTicket
+      summary: Resolve a support ticket
       parameters:
       - $ref: '#/components/parameters/TicketId'
       responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '200':
           description: Ticket resolved
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Ticket'
+  /tickets/{ticketId}/close:
+    post:
+      tags:
+      - Tickets
+      operationId: closeTicket
+      summary: Close a resolved or otherwise closeable ticket according to policy
+      parameters:
+      - $ref: '#/components/parameters/TicketId'
+      responses:
+        '200':
+          description: Ticket closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /device-requests:
+    get:
+      tags:
+      - DeviceRequests
+      operationId: listDeviceRequests
+      summary: List DeviceRequests visible under RBAC and tenant isolation
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '200':
+          description: Device requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDeviceRequests'
+    post:
+      tags:
+      - DeviceRequests
+      operationId: createDeviceRequest
+      summary: Submit a Customer Device request (SmartBox Request in UI)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitDeviceRequest'
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '201':
+          description: Device request submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceRequest'
+  /device-requests/{requestId}:
+    get:
+      tags:
+      - DeviceRequests
+      operationId: getDeviceRequest
+      summary: Get one authorized DeviceRequest
+      parameters:
+      - $ref: '#/components/parameters/DeviceRequestId'
+      responses:
+        '200':
+          description: Device request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /device-requests/{requestId}/fulfill:
+    post:
+      tags:
+      - DeviceRequests
+      operationId: fulfillDeviceRequest
+      summary: Fulfill a pending DeviceRequest by associating the supplied Device
+      description: ADMIN or SUPER_ADMIN only. The request and Device must be eligible, belong to the intended Customer and remain auditable.
+      parameters:
+      - $ref: '#/components/parameters/DeviceRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FulfillDeviceRequest'
+      responses:
+        '200':
+          description: Device request fulfilled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /device-requests/{requestId}/cancel:
+    post:
+      tags:
+      - DeviceRequests
+      operationId: cancelDeviceRequest
+      summary: Cancel a pending DeviceRequest with an auditable reason
+      description: A Customer may cancel its own pending request. ADMIN or SUPER_ADMIN may cancel an authorized pending request. Terminal requests cannot be cancelled again.
+      parameters:
+      - $ref: '#/components/parameters/DeviceRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelDeviceRequest'
+      responses:
+        '200':
+          description: Device request cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /notifications:
+    get:
+      tags:
+      - Notifications
+      operationId: listNotifications
+      summary: List authoritative notifications for the current user
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      - name: read
+        in: query
+        schema:
+          type: boolean
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotifications'
+  /notifications/{notificationId}/read:
+    patch:
+      tags:
+      - Notifications
+      operationId: markNotificationRead
+      summary: Mark one authorized notification as read
+      parameters:
+      - $ref: '#/components/parameters/NotificationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkNotificationReadRequest'
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '200':
+          description: Notification updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
 components:
+  securitySchemes:
+    UserBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Human user access token. Authorization remains subject to RBAC and Customer ownership.
+    DeviceBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-or-JWT
+      description: Credential representing exactly one Device; the path deviceId must match the authenticated Device.
   parameters:
     Page:
       name: page
@@ -617,15 +1075,30 @@ components:
       schema:
         type: string
         format: uuid
-    SessionId:
-      name: sessionId
+    MonitoringSessionId:
+      name: monitoringSessionId
       in: path
       required: true
       schema:
         type: string
         format: uuid
+      description: Device-generated canonical MonitoringSession UUID.
     TicketId:
       name: ticketId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DeviceRequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    NotificationId:
+      name: notificationId
       in: path
       required: true
       schema:
@@ -640,6 +1113,24 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     BadRequest:
       description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Authenticated identity is not authorized for this resource or tenant
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found or not visible to the authenticated identity
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Request conflicts with current resource state or idempotency semantics
       content:
         application/json:
           schema:
@@ -696,6 +1187,7 @@ components:
       - REJECTED
     LoginRequest:
       type: object
+      additionalProperties: false
       required:
       - email
       - password
@@ -705,10 +1197,99 @@ components:
           format: email
         password:
           type: string
+          minLength: 12
+    RefreshSessionRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+          description: Opaque refresh credential stored securely by the client.
+    LogoutRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+          description: Refresh credential to revoke/end.
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - currentPassword
+      - newPassword
+      properties:
+        currentPassword:
+          type: string
+          minLength: 1
+        newPassword:
+          type: string
+          minLength: 12
+    ResetPasswordRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - newPassword
+      properties:
+        newPassword:
+          type: string
+          minLength: 12
+          description: New password delivered to the affected user according to operational policy; never logged.
+    ChangeRoleRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - role
+      properties:
+        role:
+          $ref: '#/components/schemas/UserRole'
+    CreateUserRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - email
+      - role
+      - password
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/UserRole'
+        password:
+          type: string
+          minLength: 12
+        customerId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    UpdateUserRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
     AuthSession:
       type: object
       required:
       - accessToken
+      - refreshToken
       - expiresIn
       - user
       properties:
@@ -716,6 +1297,7 @@ components:
           type: string
         refreshToken:
           type: string
+          description: Explicit refresh credential; clients must store it securely and send it to refresh/logout operations.
         expiresIn:
           type: integer
         user:
@@ -763,6 +1345,28 @@ components:
           enum:
           - ACTIVE
           - INACTIVE
+    CreateCustomerRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+    UpdateCustomerRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - INACTIVE
     Location:
       type: object
       required:
@@ -787,6 +1391,7 @@ components:
       type: object
       required:
       - levelPercent
+      - charging
       properties:
         levelPercent:
           type: number
@@ -806,6 +1411,11 @@ components:
           description: Extensible connection type such as CELLULAR, WIFI or UNKNOWN.
     DeviceState:
       type: object
+      additionalProperties: false
+      required:
+      - battery
+      - connectivity
+      - monitoringStatus
       properties:
         battery:
           $ref: '#/components/schemas/BatteryState'
@@ -854,6 +1464,25 @@ components:
           anyOf:
           - $ref: '#/components/schemas/Location'
           - type: 'null'
+    CreateDeviceRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - displayName
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+    UpdateDeviceRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+        status:
+          $ref: '#/components/schemas/DeviceStatus'
     DeviceActivation:
       type: object
       required:
@@ -874,27 +1503,57 @@ components:
           - EXPIRED
           - ALREADY_ACTIVATED
           - INVALID
-    StartMonitoringSessionRequest:
+    DeviceActivationTokenRequest:
       type: object
+      additionalProperties: false
       required:
-      - clientSessionId
-      - startedAt
+      - activationToken
       properties:
-        clientSessionId:
+        activationToken:
+          type: string
+          minLength: 32
+          writeOnly: true
+          description: Short-lived bootstrap secret. Accept only in a JSON request body; redact from logs, traces and error reports.
+    DeviceCredentialProvisioning:
+      type: object
+      additionalProperties: false
+      required:
+      - deviceId
+      - accessToken
+      - tokenType
+      properties:
+        deviceId:
           type: string
           format: uuid
+        accessToken:
+          type: string
+          description: One-time returned Device bearer credential; store securely and never log.
+        tokenType:
+          type: string
+          const: Bearer
+    StartMonitoringSessionRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - monitoringSessionId
+      - startedAt
+      properties:
+        monitoringSessionId:
+          type: string
+          format: uuid
+          description: Device-generated canonical session UUID reused for every retry and dependent record.
         startedAt:
           type: string
           format: date-time
     MonitoringSession:
       type: object
       required:
-      - id
+      - monitoringSessionId
       - deviceId
       - status
       - startedAt
       properties:
-        id:
+        monitoringSessionId:
           type: string
           format: uuid
         deviceId:
@@ -913,6 +1572,20 @@ components:
           - string
           - 'null'
           format: date-time
+        receivedAt:
+          type: string
+          format: date-time
+          readOnly: true
+    StopMonitoringSessionRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - finishedAt
+      properties:
+        finishedAt:
+          type: string
+          format: date-time
+          description: Actual Device-observed UTC stop time, never inferred from server receipt time.
     Observation:
       type: object
       required:
@@ -930,6 +1603,128 @@ components:
           - type: boolean
         unit:
           type: string
+    NavigationSummary:
+      type: object
+      additionalProperties: false
+      required:
+      - status
+      - source
+      - distanceTraveledMeters
+      - movingDurationSeconds
+      - stoppedDurationSeconds
+      - maximumSpeedMetersPerSecond
+      properties:
+        status:
+          type: string
+          enum:
+          - VALID
+          - PARTIAL
+          - UNAVAILABLE
+          description: Whether all, some or none of the navigation KPI inputs are reliable for this period.
+        source:
+          type: string
+          enum:
+          - GNSS
+          - GPS_DERIVED
+          - UNAVAILABLE
+          description: Best source used for the reported navigation metrics.
+        distanceTraveledMeters:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          description: Reliable distance in meters during this period, or null when unavailable.
+        movingDurationSeconds:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          description: Reliable moving duration in seconds during this period, or null when unavailable.
+        stoppedDurationSeconds:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          description: Reliable stopped duration in seconds during this period, or null when unavailable.
+        maximumSpeedMetersPerSecond:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          description: Maximum reliable ground speed in meters per second during this period, or null when unavailable.
+      oneOf:
+      - title: Valid navigation
+        required:
+        - status
+        - source
+        - distanceTraveledMeters
+        - movingDurationSeconds
+        - stoppedDurationSeconds
+        - maximumSpeedMetersPerSecond
+        properties:
+          status:
+            const: VALID
+          source:
+            enum:
+            - GNSS
+            - GPS_DERIVED
+          distanceTraveledMeters:
+            type: number
+          movingDurationSeconds:
+            type: number
+          stoppedDurationSeconds:
+            type: number
+          maximumSpeedMetersPerSecond:
+            type: number
+      - title: Partial navigation
+        required:
+        - status
+        - source
+        - distanceTraveledMeters
+        - movingDurationSeconds
+        - stoppedDurationSeconds
+        - maximumSpeedMetersPerSecond
+        properties:
+          status:
+            const: PARTIAL
+          source:
+            enum:
+            - GNSS
+            - GPS_DERIVED
+        anyOf:
+        - properties:
+            distanceTraveledMeters:
+              type: number
+        - properties:
+            movingDurationSeconds:
+              type: number
+        - properties:
+            stoppedDurationSeconds:
+              type: number
+        - properties:
+            maximumSpeedMetersPerSecond:
+              type: number
+      - title: Unavailable navigation
+        required:
+        - status
+        - source
+        - distanceTraveledMeters
+        - movingDurationSeconds
+        - stoppedDurationSeconds
+        - maximumSpeedMetersPerSecond
+        properties:
+          status:
+            const: UNAVAILABLE
+          source:
+            const: UNAVAILABLE
+          distanceTraveledMeters:
+            type: 'null'
+          movingDurationSeconds:
+            type: 'null'
+          stoppedDurationSeconds:
+            type: 'null'
+          maximumSpeedMetersPerSecond:
+            type: 'null'
     TelemetryBatch:
       type: object
       required:
@@ -941,8 +1736,8 @@ components:
       properties:
         schemaVersion:
           type: integer
-          const: 2
-          description: Current lean telemetry envelope schema version.
+          const: 3
+          description: Current lean telemetry envelope schema version with explicit navigation quality.
         batchId:
           type: string
           format: uuid
@@ -952,6 +1747,7 @@ components:
         periods:
           type: array
           minItems: 1
+          maxItems: 1440
           items:
             $ref: '#/components/schemas/TelemetryPeriodSummary'
     Detector:
@@ -980,11 +1776,13 @@ components:
           format: date-time
         samples:
           type: array
+          minItems: 1
           items:
             $ref: '#/components/schemas/EvidenceSample'
           description: High-frequency event-specific evidence samples.
     DeviceEvent:
       type: object
+      additionalProperties: false
       required:
       - schemaVersion
       - eventId
@@ -993,6 +1791,11 @@ components:
       - severity
       - occurredAt
       - detector
+      - attributes
+      - evidence
+      - location
+      - deviceId
+      - receivedAt
       properties:
         schemaVersion:
           type: integer
@@ -1018,7 +1821,10 @@ components:
           type: string
           format: date-time
         location:
-          $ref: '#/components/schemas/Location'
+          anyOf:
+          - $ref: '#/components/schemas/Location'
+          - type: 'null'
+          description: Nullable when the Device has no reliable GPS fix.
         detector:
           $ref: '#/components/schemas/Detector'
         attributes:
@@ -1030,6 +1836,11 @@ components:
             and navigation.moving.
         evidence:
           $ref: '#/components/schemas/EventEvidence'
+        receivedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Server ingestion timestamp, distinct from occurredAt.
     IngestionAcknowledgement:
       type: object
       required:
@@ -1045,6 +1856,40 @@ components:
         receivedAt:
           type: string
           format: date-time
+    CreateTicketRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - subject
+      - message
+      properties:
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 200
+        message:
+          type: string
+          minLength: 1
+          maxLength: 10000
+    CreateTicketMessageRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 10000
+    AssignTicketRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - assignedUserId
+      properties:
+        assignedUserId:
+          type: string
+          format: uuid
     Ticket:
       type: object
       required:
@@ -1097,6 +1942,185 @@ components:
         sentAt:
           type: string
           format: date-time
+    DeviceRequestStatus:
+      type: string
+      enum:
+      - PENDING
+      - FULFILLED
+      - CANCELLED
+    SubmitDeviceRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        notes:
+          type: string
+          maxLength: 1000
+    FulfillDeviceRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - deviceId
+      properties:
+        deviceId:
+          type: string
+          format: uuid
+          description: Eligible Device supplied and associated to the requesting Customer.
+    CancelDeviceRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    DeviceRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - customerId
+      - status
+      - fulfilledDeviceId
+      - cancellationReason
+      - fulfilledAt
+      - cancelledAt
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/DeviceRequestStatus'
+        notes:
+          type:
+          - string
+          - 'null'
+        fulfilledDeviceId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        cancellationReason:
+          type:
+          - string
+          - 'null'
+        fulfilledAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        cancelledAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      oneOf:
+      - title: Pending Device request
+        required:
+        - status
+        - fulfilledDeviceId
+        - cancellationReason
+        - fulfilledAt
+        - cancelledAt
+        properties:
+          status:
+            const: PENDING
+          fulfilledDeviceId:
+            type: 'null'
+          cancellationReason:
+            type: 'null'
+          fulfilledAt:
+            type: 'null'
+          cancelledAt:
+            type: 'null'
+      - title: Fulfilled Device request
+        required:
+        - status
+        - fulfilledDeviceId
+        - cancellationReason
+        - fulfilledAt
+        - cancelledAt
+        properties:
+          status:
+            const: FULFILLED
+          fulfilledDeviceId:
+            type: string
+            format: uuid
+          cancellationReason:
+            type: 'null'
+          fulfilledAt:
+            type: string
+            format: date-time
+          cancelledAt:
+            type: 'null'
+      - title: Cancelled Device request
+        required:
+        - status
+        - fulfilledDeviceId
+        - cancellationReason
+        - fulfilledAt
+        - cancelledAt
+        properties:
+          status:
+            const: CANCELLED
+          fulfilledDeviceId:
+            type: 'null'
+          cancellationReason:
+            type: string
+            minLength: 1
+          fulfilledAt:
+            type: 'null'
+          cancelledAt:
+            type: string
+            format: date-time
+    Notification:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - code
+      - message
+      - read
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        message:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    MarkNotificationReadRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - read
+      properties:
+        read:
+          type: boolean
+          const: true
     Pagination:
       type: object
       required:
@@ -1173,6 +2197,42 @@ components:
             $ref: '#/components/schemas/Ticket'
         pagination:
           $ref: '#/components/schemas/Pagination'
+    PaginatedTicketMessages:
+      type: object
+      required:
+      - items
+      - pagination
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketMessage'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    PaginatedDeviceRequests:
+      type: object
+      required:
+      - items
+      - pagination
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceRequest'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    PaginatedNotifications:
+      type: object
+      required:
+      - items
+      - pagination
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
     ErrorResponse:
       type: object
       required:
@@ -1201,6 +2261,9 @@ components:
       required:
       - periodStartedAt
       - periodFinishedAt
+      - deviceState
+      - lastLocation
+      - navigation
       - observations
       additionalProperties: false
       properties:
@@ -1216,12 +2279,13 @@ components:
           anyOf:
           - $ref: '#/components/schemas/Location'
           - type: 'null'
+        navigation:
+          $ref: '#/components/schemas/NavigationSummary'
         observations:
           type: array
           items:
             $ref: '#/components/schemas/Observation'
-          description: Compact period-level observations. MVP navigation keys include navigation.distance.traveled,
-            navigation.moving.duration, navigation.stopped.duration and navigation.speed.maximum.
+          description: Extensible business-value observations. The four canonical navigation KPI values live in the structured navigation field and are not duplicated here.
     EvidenceSample:
       type: object
       required:

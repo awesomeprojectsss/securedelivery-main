@@ -71,23 +71,38 @@ The MVP does not reconstruct or persist a full delivery route from normal teleme
 
 ### Navigation aggregates
 
-Canonical MVP observations:
+Canonical MVP structured navigation fields:
 
 ```text
-navigation.distance.traveled
-navigation.moving.duration
-navigation.stopped.duration
-navigation.speed.maximum
+navigation.distanceTraveledMeters
+navigation.movingDurationSeconds
+navigation.stoppedDurationSeconds
+navigation.maximumSpeedMetersPerSecond
+```
+
+Quality fields:
+
+```text
+navigation.status -> VALID | PARTIAL | UNAVAILABLE
+navigation.source -> GNSS | GPS_DERIVED | UNAVAILABLE
 ```
 
 Canonical units:
 
 ```text
-navigation.distance.traveled -> m
-navigation.moving.duration   -> s
-navigation.stopped.duration  -> s
-navigation.speed.maximum     -> m/s
+distanceTraveledMeters          -> m
+movingDurationSeconds           -> s
+stoppedDurationSeconds          -> s
+maximumSpeedMetersPerSecond     -> m/s
 ```
+
+All four metric keys are required. Available values are nonnegative numbers; unavailable values are `null`, never zero by substitution. They are strongly structured because they are platform-level MVP KPI inputs.
+
+Consistency rules:
+
+- `VALID`: all metrics are numeric and source is `GNSS` or `GPS_DERIVED`;
+- `PARTIAL`: at least one metric is numeric, unavailable metrics are `null`, and source is `GNSS` or `GPS_DERIVED`;
+- `UNAVAILABLE`: every metric is `null` and source is `UNAVAILABLE`.
 
 The server can derive:
 
@@ -129,13 +144,12 @@ GPS readings that fail the Device's quality criteria must not be treated as reli
 
 ## Generic Observation
 
-Extensible measurements continue to use the generic Observation envelope:
+Future/extensible measurements continue to use the generic Observation envelope:
 
 ```json
 {
-  "key": "navigation.speed.maximum",
-  "value": 14.7,
-  "unit": "m/s"
+  "key": "device.signal.quality",
+  "value": 0.93
 }
 ```
 
@@ -148,6 +162,8 @@ Supported values:
 `unit` is optional.
 
 New sensor metrics may be introduced without changing the common server DTO when the envelope remains valid.
+
+The four canonical schema-version-3 navigation fields are not duplicated in `observations[]`.
 
 ---
 
@@ -179,30 +195,20 @@ Example:
     "recordedAt": "2026-08-25T00:10:58.900Z"
   },
 
-  "observations": [
-    {
-      "key": "navigation.distance.traveled",
-      "value": 702.0,
-      "unit": "m"
-    },
-    {
-      "key": "navigation.moving.duration",
-      "value": 52.4,
-      "unit": "s"
-    },
-    {
-      "key": "navigation.stopped.duration",
-      "value": 7.6,
-      "unit": "s"
-    },
-    {
-      "key": "navigation.speed.maximum",
-      "value": 17.2,
-      "unit": "m/s"
-    }
-  ]
+  "navigation": {
+    "status": "VALID",
+    "source": "GNSS",
+    "distanceTraveledMeters": 702.0,
+    "movingDurationSeconds": 52.4,
+    "stoppedDurationSeconds": 7.6,
+    "maximumSpeedMetersPerSecond": 17.2
+  },
+
+  "observations": []
 }
 ```
+
+`lastLocation` is required as a field but may be `null` when the period has no valid location. The Device must not fabricate a GPS position.
 
 ---
 
@@ -220,7 +226,7 @@ Example:
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "batchId": "019912a7-b2b8-7892-a441-bf9fdcbcab23",
   "monitoringSessionId": "019912a6-b01c-7ba4-b842-f64abfe20f02",
   "periods": [
@@ -244,28 +250,15 @@ Example:
         "accuracyMeters": 7.2,
         "recordedAt": "2026-08-25T00:10:58.900Z"
       },
-      "observations": [
-        {
-          "key": "navigation.distance.traveled",
-          "value": 702.0,
-          "unit": "m"
-        },
-        {
-          "key": "navigation.moving.duration",
-          "value": 52.4,
-          "unit": "s"
-        },
-        {
-          "key": "navigation.stopped.duration",
-          "value": 7.6,
-          "unit": "s"
-        },
-        {
-          "key": "navigation.speed.maximum",
-          "value": 17.2,
-          "unit": "m/s"
-        }
-      ]
+      "navigation": {
+        "status": "VALID",
+        "source": "GNSS",
+        "distanceTraveledMeters": 702.0,
+        "movingDurationSeconds": 52.4,
+        "stoppedDurationSeconds": 7.6,
+        "maximumSpeedMetersPerSecond": 17.2
+      },
+      "observations": []
     }
   ]
 }
@@ -274,6 +267,8 @@ Example:
 An online Device normally sends one period per batch.
 
 An offline Device may send multiple accumulated period summaries after connectivity returns.
+
+The Device generates `monitoringSessionId` before monitoring begins and persists it with every local period. After reconnecting, it first creates/reconciles that MonitoringSession idempotently, then uploads its pending batches. It never waits for a server-generated session identifier.
 
 ---
 
@@ -344,3 +339,5 @@ Future dedicated IoT Devices may introduce measurements such as temperature or h
 The server must not reject a valid telemetry summary because it contains an unknown valid Observation key.
 
 Known metrics may receive specialized indexing or KPI processing without making ingestion dependent on compile-time knowledge of every future sensor.
+
+The Server validates the structured `navigation` values separately from generic observations and rejects negative values, inconsistent status/source combinations or malformed units-by-field semantics. Only reliable numeric values enter KPI aggregates.

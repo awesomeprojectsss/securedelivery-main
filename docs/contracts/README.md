@@ -1,5 +1,7 @@
 # SecureDelivery Shared Contracts
 
+> Developer guides: [Português (Brasil)](../pt-BR/guia-dos-contratos.md) · [English](../en/contract-guide.md).
+
 ## Purpose
 
 This directory is the canonical source of truth for communication between SecureDelivery repositories.
@@ -91,10 +93,13 @@ Covers:
 - customers
 - devices
 - device activation
+- Device credential provisioning
+- Device requests
 - monitoring sessions
 - telemetry ingestion
 - event ingestion/query
 - support tickets
+- notifications
 
 ### `asyncapi.yaml`
 
@@ -201,10 +206,12 @@ Normal telemetry intentionally excludes continuous raw IMU history.
 MVP navigation summary keys:
 
 ```text
-navigation.distance.traveled
-navigation.moving.duration
-navigation.stopped.duration
-navigation.speed.maximum
+navigation.distanceTraveledMeters
+navigation.movingDurationSeconds
+navigation.stoppedDurationSeconds
+navigation.maximumSpeedMetersPerSecond
 ```
+
+These four KPI inputs are structured platform fields in telemetry schema version 3. The summary also declares navigation quality and source, and uses `null` rather than zero for unavailable metrics. Generic `observations[]` remains available for future extensible business-value measurements.
 
 Motion events may additionally carry speed-at-event and short pre-event speed context.

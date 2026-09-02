@@ -1,0 +1,59 @@
+name: Reusable repository documentation CI
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  documentation:
+    name: Repository documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Check required documentation
+        shell: bash
+        run: |
+          test -f AGENTS.md
+          test -f docs/architecture.md
+          test -f docs/project.md
+
+      - name: Check local Markdown links
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          const ignored = new Set(['.git', 'node_modules']);
+          const walk = (directory) => fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+            if (entry.isDirectory() && ignored.has(entry.name)) return [];
+            const entryPath = path.join(directory, entry.name);
+            return entry.isDirectory() ? walk(entryPath) : [entryPath];
+          });
+
+          const failures = [];
+          for (const file of walk('.').filter((entry) => entry.endsWith('.md'))) {
+            const content = fs.readFileSync(file, 'utf8');
+            for (const match of content.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
+              const link = match[1];
+              if (/^(https?:|mailto:|#)/.test(link)) continue;
+              const filePart = link.split('#', 1)[0];
+              if (!filePart) continue;
+              const destination = path.resolve(path.dirname(file), decodeURIComponent(filePart));
+              if (!fs.existsSync(destination)) failures.push(`${file}: ${link}`);
+            }
+          }
+
+          if (failures.length > 0) {
+            console.error(failures.join('\n'));
+            process.exit(1);
+          }
+
+          console.log('Repository documentation links: OK');
+          NODE

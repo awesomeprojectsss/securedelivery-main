@@ -68,6 +68,8 @@ Device
 
 Represents one continuous period in which Device monitoring is enabled.
 
+The Device generates the canonical `monitoringSessionId` before monitoring begins. Session creation and reconciliation are idempotent, so the session can exist locally before the Server is reachable.
+
 A MonitoringSession groups:
 
 - normal telemetry
@@ -110,10 +112,7 @@ May contain:
 
 - latest valid location;
 - Device state;
-- distance traveled;
-- moving duration;
-- stopped duration;
-- maximum speed;
+- a required structured navigation summary containing distance traveled, moving duration, stopped duration and maximum speed in canonical SI units;
 - future generic observations with business value.
 
 Raw IMU history is not normal telemetry.
@@ -151,6 +150,7 @@ Event detected by Device-side algorithms.
 Contains:
 
 - stable event ID
+- canonical `monitoringSessionId`
 - namespaced event type
 - severity
 - occurrence time
@@ -158,6 +158,8 @@ Contains:
 - detector metadata
 - generic attributes
 - evidence
+
+Evidence and detector metadata are required. Contextual attributes may be an empty array. Location is nullable because unavailable GPS must not prevent event persistence.
 
 Device event types are extensible.
 
@@ -203,6 +205,33 @@ A Ticket contains persisted messages and may be assigned to an Administrator.
 
 Realtime WebSocket publication supplements but never replaces persistent history.
 
+Ticket message history is paginated and queryable over HTTP. Ticket lifecycle includes explicit resolve and close operations.
+
+---
+
+## DeviceRequest
+
+Technical resource representing a Customer request for one Device. The Dashboard presents it as a SmartBox Request.
+
+Minimum lifecycle:
+
+```text
+PENDING -> FULFILLED
+PENDING -> CANCELLED
+```
+
+Fulfillment is an explicit administrative action that atomically records the associated `fulfilledDeviceId` and `fulfilledAt`. Cancellation is an explicit authorized action that records `cancellationReason` and `cancelledAt`. Only `PENDING` requests may transition; terminal state is immutable.
+
+It does not imply billing, inventory or shipment tracking.
+
+---
+
+## Notification
+
+Persistent user-facing notification owned by an authorized human user/tenant context.
+
+WebSocket `notification.created` is only a realtime signal. Notifications remain listable over HTTP and may be marked read.
+
 ---
 
 ## Relationship Summary
@@ -218,6 +247,10 @@ Customer
    │             └── DeviceEvent[]
    │                    ├── attributes[]
    │                    └── EventEvidence
+   ├── DeviceRequest[]
    └── Ticket[]
           └── TicketMessage[]
+
+User
+   └── Notification[]
 ```
