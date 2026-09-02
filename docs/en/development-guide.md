@@ -8,7 +8,19 @@
 | `securedelivery-mobile` | sensors, local detection, evidence, offline persistence, batching and synchronization |
 | `securedelivery-dashboard` | management, monitoring, events, requests, notifications and support |
 
-Before cross-repository work, run `./scripts/refresh-local-workspace.sh`, then read the root and target `AGENTS.md`, target architecture, relevant contracts and ADRs. Preserve warnings about diverged branches or local changes.
+Before cross-repository work, refresh the workspace with the command for your environment:
+
+```bash
+# Linux, macOS or Git Bash
+./scripts/refresh-local-workspace.sh
+```
+
+```powershell
+# Windows PowerShell 5.1 or PowerShell 7
+.\scripts\refresh-local-workspace.ps1
+```
+
+Then read the root and target `AGENTS.md`, target architecture, relevant contracts and ADRs. Preserve and investigate warnings about diverged branches, local changes or network failures; the script does not discard history to resolve them.
 
 ## Shared-change order
 
