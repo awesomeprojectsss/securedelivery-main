@@ -1,5 +1,7 @@
 # SecureDelivery — Project Context
 
+> New audience-oriented documentation: [Português (Brasil)](pt-BR/README.md) · [English](en/README.md). This detailed document remains available as a compatibility reference.
+
 ## Overview
 
 SecureDelivery is a delivery-quality monitoring platform focused on establishments that require consistent delivery quality and want to prove, with data, the conditions under which a product was transported until it reached the customer.
@@ -99,6 +101,8 @@ Main responsibilities:
 - administrators
 - Devices
 - Device activation
+- Device credential provisioning
+- Device requests
 - deliveries
 - telemetry
 - events
@@ -106,6 +110,7 @@ Main responsibilities:
 - speed and distance operational KPIs
 - device health
 - support tickets
+- notifications
 - realtime support chat
 - realtime dashboard updates
 - persistence
@@ -143,12 +148,14 @@ Main responsibilities:
 - administrator management
 - Device management presented as SmartBoxes in the UI
 - Device activation flows presented as SmartBox activation
+- Device request flows presented as SmartBox requests
 - Device monitoring presented as SmartBox monitoring
 - customer-scoped monitoring
 - global operational monitoring for administrators
 - event visualization
 - external Google Maps links
 - support tickets
+- notifications
 - realtime support chat
 
 ---
@@ -166,6 +173,8 @@ CUSTOMER
 Authorization must be enforced by the backend.
 
 The dashboard may hide or disable actions according to permissions, but frontend behavior must never be considered a security boundary.
+
+Human users authenticate separately from Devices. Human APIs use user bearer credentials and enforce RBAC plus Customer ownership. Monitoring synchronization and Device ingestion use a Device bearer credential scoped to exactly one `deviceId`.
 
 ---
 
@@ -252,6 +261,8 @@ Tenant isolation must be guaranteed by the backend.
 
 A Customer must never be able to access SmartBoxes, deliveries, events, tickets or users belonging to another Customer.
 
+SmartBox requests are represented technically as tenant-scoped `DeviceRequest` resources. A pending request is explicitly fulfilled by an authorized Administrator with an eligible `deviceId`, or cancelled by an authorized actor with a reason. Terminal transitions are immutable and auditable; the MVP does not attach billing, ecommerce or shipment tracking to this resource.
+
 ---
 
 # Device Lifecycle
@@ -302,7 +313,11 @@ The QR Code should not simply expose an internal Device identifier.
 
 Prefer a secure activation token with an explicit lifecycle and expiration strategy.
 
+Activation material is accepted only in JSON request bodies. It must not appear in URL paths or query strings. A web QR link may place it in the URL fragment so the client can capture it locally, remove it from browser history and submit it in the request body. Every layer must redact it from logs, traces and errors.
+
 The exact token design may evolve.
+
+After an authenticated Customer confirms activation, the Device exchanges its short-lived activation material once for a Device credential. The credential represents only that Device, is separate from human authentication, and must be stored by the Flutter app using secure operating-system storage. The exact credential format, signing/rotation mechanism and storage package remain implementation details.
 
 ---
 
@@ -396,6 +411,10 @@ When monitoring is enabled:
 - telemetry is persisted locally
 - synchronization runs according to policy
 - critical events are persisted immediately
+
+Before acquisition starts, the Device generates and durably stores the canonical `monitoringSessionId`. The same UUID is used for session creation, telemetry, events, stop synchronization and every retry. The Server does not assign a competing identifier.
+
+Monitoring may start and stop without connectivity. On reconnect, the Device idempotently creates/reconciles the session, uploads dependent telemetry/events, and sends the Device-observed `finishedAt`. Server receipt time must not replace the actual stop time.
 
 ---
 
@@ -553,14 +572,16 @@ GNSS / operating-system ground speed
 
 The Device observes GPS/speed at up to 1 Hz but normally sends only one-minute aggregates to the Server.
 
-Canonical normal telemetry metrics:
+Canonical structured normal telemetry fields:
 
 ```text
-navigation.distance.traveled   [m]
-navigation.moving.duration     [s]
-navigation.stopped.duration    [s]
-navigation.speed.maximum       [m/s]
+navigation.distanceTraveledMeters          [m]
+navigation.movingDurationSeconds           [s]
+navigation.stoppedDurationSeconds          [s]
+navigation.maximumSpeedMetersPerSecond     [m/s]
 ```
+
+All four keys are required KPI inputs in telemetry schema version 3. Available values are nonnegative; unavailable values are `null`, never a fabricated zero. `navigation.status` (`VALID`, `PARTIAL`, `UNAVAILABLE`) and `navigation.source` (`GNSS`, `GPS_DERIVED`, `UNAVAILABLE`) make completeness explicit. Generic `observations[]` remains available for future extensible business-value measurements and does not carry duplicate copies of these four fields.
 
 The Server derives:
 
@@ -669,11 +690,21 @@ A support ticket should support:
 - realtime messages
 - resolution/closure
 
+Ticket message history is paginated and queryable through HTTP. `ticket.message.created` is only a realtime signal; after reconnect, the Dashboard reloads authoritative history. Resolve and close are distinct explicit HTTP actions.
+
 Administrators can assume a ticket conversation and interact with the Customer in realtime.
 
 The exact chat transport may be implemented through WebSocket.
 
 Persistent message history must not depend on WebSocket delivery.
+
+---
+
+# Notifications
+
+Notifications are persisted server-side and remain queryable through HTTP. `notification.created` is a realtime signal only. Missing the signal must not lose the Notification, and read state is changed through the HTTP API.
+
+Notification delivery follows human RBAC and tenant isolation. A Customer must never receive another Customer's notification.
 
 ---
 
@@ -807,24 +838,29 @@ The project should use:
 - Code Review
 - Conventional Commits
 - automated tests
+- simple GitHub Actions CI
 - documentation
 
 The branch strategy may use GitFlow or another strategy agreed by the team.
 
 Do not silently introduce a different team workflow.
 
+Product delivery uses a hybrid process inspired by Scrum with continuous Kanban flow in Trello. It has no Daily Scrum or mandatory daily status report. The main integrated review/refinement/replenishment meeting happens approximately every two weeks, while help, blockers and decisions are coordinated asynchronously through messages and recorded on the relevant card or canonical document. The operational policy is defined in `docs/pt-BR/guia-backlog-trello.md`.
+
+The workspace exposes `npm run ci` as the single contract/documentation validation command. Application pipelines are added after each application is initialized. Deployment automation remains intentionally absent until a hosting target, staging/production environments, health checks, secrets and rollback procedure are explicitly decided. Production deployment always requires human approval.
+
 ---
 
 # Repository Development Documentation
 
-Each SecureDelivery repository must maintain three complementary documentation layers:
+Each SecureDelivery repository must maintain four complementary documentation layers:
 
 - `AGENTS.md`: operational instructions for AI coding agents.
 - `docs/architecture.md`: current architecture, boundaries and technical decisions of that repository.
 - `docs/development-guide.pt-BR.md`: practical engineering guidance for human developers.
 - `docs/git-workflow.pt-BR.md`: Git, GitHub, branching, Pull Request, review and release workflow for human developers.
 
-Human-facing development workflow documentation is written in Brazilian Portuguese.
+The workspace provides audience-oriented human documentation in Brazilian Portuguese and English, plus one bilingual beginner glossary at `docs/terminology.md`. Repository-specific practical guides may remain in Brazilian Portuguese while the team is primarily Brazilian.
 
 AI-agent operational documentation remains in English for consistency with the engineering toolchain.
 
@@ -842,6 +878,7 @@ The MVP should focus on:
 - administrator management
 - Device management (displayed as SmartBox in the UI)
 - QR-based Device activation (displayed as SmartBox activation)
+- Device requests (displayed as SmartBox requests)
 - mobile IoT monitoring
 - 50 Hz raw IMU sampling with configurable rates
 - on-Device event detection
@@ -858,6 +895,7 @@ The MVP should focus on:
 - connectivity
 - health
 - support tickets
+- notifications
 - realtime support chat
 - monitoring dashboard
 - event visualization

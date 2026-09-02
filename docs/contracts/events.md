@@ -73,6 +73,8 @@ Detector versioning is critical for:
 
 Event-specific values use generic attributes.
 
+`attributes` is always present and may be an empty array when no reliable contextual values are available.
+
 For motion events, the Device should include useful navigation context when reliable speed data is available.
 
 MVP navigation context:
@@ -141,6 +143,8 @@ With a 50 Hz IMU baseline, a four-second surrounding window can preserve roughly
 The exact evidence window should remain configurable.
 
 Evidence is persisted locally before synchronization.
+
+Evidence is required for every detected Device event. An event is persisted locally with its detector metadata and evidence before it is eligible for synchronization.
 
 ---
 
@@ -220,6 +224,12 @@ Example:
   }
 }
 ```
+
+`location` is always present as a field but may be `null` when no reliable GPS fix is available. Unavailable location or speed context must never be fabricated and must not prevent the event from being persisted.
+
+`occurredAt` is the Device-observed event time. The Server separately records `receivedAt` when ingestion succeeds.
+
+The Device-generated `monitoringSessionId` is the canonical MonitoringSession identifier. It is created before monitoring starts and reused across session creation, telemetry, events, stop synchronization and retries.
 
 The normal telemetry contract does not contain this high-frequency evidence stream.
 

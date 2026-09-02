@@ -1,6 +1,22 @@
 # SecureDelivery
 
-SecureDelivery is a delivery-quality monitoring platform.
+Plataforma de monitoramento da qualidade de entregas. Delivery-quality monitoring platform.
+
+## Documentação / Documentation
+
+- [Português (Brasil)](docs/pt-BR/README.md)
+- [English](docs/en/README.md)
+- [Contratos canônicos](docs/contracts/README.md)
+- [Glossário bilíngue](docs/terminology.md)
+
+## CI
+
+```bash
+npm ci
+npm run ci
+```
+
+[Guia simples de CI/CD](docs/pt-BR/ci-cd.md) · [Simple CI/CD guide](docs/en/ci-cd.md)
 
 ## Repositories
 
@@ -8,19 +24,13 @@ SecureDelivery is a delivery-quality monitoring platform.
 - `securedelivery-mobile` — Mobile application acting as the MVP IoT device.
 - `securedelivery-dashboard` — Management and monitoring dashboard.
 
-## Project Documentation
-
-Shared product context:
-
-`docs/project.md`
-
-Repository-specific architecture:
+## Repository-specific architecture
 
 - `securedelivery-server/docs/architecture.md`
 - `securedelivery-mobile/docs/architecture.md`
 - `securedelivery-dashboard/docs/architecture.md`
 
-## Local Development
+## Desenvolvimento local / Local development
 
 The local environment is orchestrated through:
 

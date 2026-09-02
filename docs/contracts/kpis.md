@@ -17,14 +17,14 @@ The Dashboard presents the resulting values.
 Source:
 
 ```text
-navigation.distance.traveled
+navigation.distanceTraveledMeters
 ```
 
 Formula:
 
 ```text
 monitoredDistance =
-sum(valid period distance traveled)
+sum(reliable numeric period distance traveled)
 ```
 
 Canonical unit:
@@ -42,14 +42,14 @@ Presentation may convert to kilometers.
 Source:
 
 ```text
-navigation.moving.duration
+navigation.movingDurationSeconds
 ```
 
 Formula:
 
 ```text
 movingDuration =
-sum(valid period moving duration)
+sum(reliable numeric period moving duration)
 ```
 
 Canonical unit:
@@ -65,14 +65,14 @@ s
 Source:
 
 ```text
-navigation.stopped.duration
+navigation.stoppedDurationSeconds
 ```
 
 Formula:
 
 ```text
 stoppedDuration =
-sum(valid period stopped duration)
+sum(reliable numeric period stopped duration)
 ```
 
 Canonical unit:
@@ -123,14 +123,14 @@ If moving duration is zero or unavailable, the KPI is unavailable rather than ze
 Source:
 
 ```text
-navigation.speed.maximum
+navigation.maximumSpeedMetersPerSecond
 ```
 
 Formula:
 
 ```text
 maximumSpeed =
-max(valid period maximum speed)
+max(reliable numeric period maximum speed)
 ```
 
 Canonical unit:
@@ -200,6 +200,10 @@ Speed ranges are presentation/analytics configuration and are not part of the in
 Do not classify events with unavailable/unreliable speed into a fabricated numeric band.
 
 Use an `UNKNOWN`/unavailable bucket when needed.
+
+## Navigation Completeness
+
+`navigation.status` describes each telemetry period. KPI calculations include each metric independently when its value is numeric and reliable. A `PARTIAL` period may therefore contribute distance but not maximum speed, for example. `UNAVAILABLE` periods contribute no navigation values and must not be interpreted as zero movement.
 
 ---
 

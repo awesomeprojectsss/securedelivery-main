@@ -1,0 +1,6 @@
+node_modules/
+.tmp/
+*.log
+
+# Material operacional local para compartilhamento no WhatsApp/Trello.
+GUIA-DO-TIME.md

@@ -4,6 +4,8 @@
 
 Accepted
 
+Amended by ADR-010, which makes the four MVP navigation aggregates structured fields while preserving generic observations for extensibility.
+
 ## Context
 
 The original telemetry contract persisted normal one-second motion snapshots on the Server while the Device sampled IMU data at 50 Hz.
@@ -38,10 +40,10 @@ Normal one-minute telemetry summaries contain:
 - battery;
 - connectivity;
 - monitoring status;
-- `navigation.distance.traveled`;
-- `navigation.moving.duration`;
-- `navigation.stopped.duration`;
-- `navigation.speed.maximum`.
+- structured distance traveled in meters;
+- structured moving duration in seconds;
+- structured stopped duration in seconds;
+- structured maximum speed in meters per second.
 
 Average moving speed is derived from:
 

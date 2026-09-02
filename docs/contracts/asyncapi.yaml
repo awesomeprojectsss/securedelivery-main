@@ -1,59 +1,77 @@
 asyncapi: 2.6.0
+id: urn:securedelivery:realtime:v1
+defaultContentType: application/json
 info:
   title: SecureDelivery Realtime API
-  version: 1.1.0
+  version: 1.2.0
+  contact:
+    name: SecureDelivery maintainers
+    url: https://github.com/awesomeprojectsss/securedelivery-main
+  license:
+    name: GNU General Public License v3.0
+    url: https://www.gnu.org/licenses/gpl-3.0.html
   description: 'Canonical realtime contract. WebSocket messages are realtime signals; authoritative persistent state
     remains available through the HTTP API.
 
     '
+tags:
+- name: Devices
+  description: Authorized Device operational signals.
+- name: Events
+  description: Authorized Device-event signals.
+- name: Tickets
+  description: Authorized support-ticket signals.
+- name: Notifications
+  description: Authorized persisted-notification signals.
 servers:
   local:
     url: ws://localhost:3000
     protocol: ws
+    security:
+    - UserBearerAuth: []
+    description: Development endpoint. Connections authenticate a human user and subscriptions are filtered by RBAC and Customer ownership.
 channels:
   device.status.changed:
     subscribe:
+      operationId: receiveDeviceStatusChanged
       message:
         $ref: '#/components/messages/DeviceStatusChanged'
   device.health.changed:
     subscribe:
+      operationId: receiveDeviceHealthChanged
       message:
         $ref: '#/components/messages/DeviceHealthChanged'
   event.created:
     subscribe:
+      operationId: receiveEventCreated
       message:
         $ref: '#/components/messages/EventCreated'
   ticket.updated:
     subscribe:
+      operationId: receiveTicketUpdated
       message:
         $ref: '#/components/messages/TicketUpdated'
   ticket.message.created:
     subscribe:
+      operationId: receiveTicketMessageCreated
       message:
         $ref: '#/components/messages/TicketMessageCreated'
   notification.created:
     subscribe:
+      operationId: receiveNotificationCreated
       message:
         $ref: '#/components/messages/NotificationCreated'
 components:
-  schemas:
-    RealtimeEnvelope:
-      type: object
-      required:
-      - type
-      - occurredAt
-      - data
-      properties:
-        type:
-          type: string
-        occurredAt:
-          type: string
-          format: date-time
-        data:
-          type: object
+  securitySchemes:
+    UserBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Human user access token. The Server authorizes each connection and emitted tenant resource.
   messages:
     DeviceStatusChanged:
       name: device.status.changed
+      messageId: deviceStatusChanged
       payload:
         type: object
         required:
@@ -97,6 +115,7 @@ components:
                 type: number
     DeviceHealthChanged:
       name: device.health.changed
+      messageId: deviceHealthChanged
       payload:
         type: object
         required:
@@ -127,6 +146,7 @@ components:
                 - UNKNOWN
     EventCreated:
       name: event.created
+      messageId: eventCreated
       payload:
         type: object
         required:
@@ -163,6 +183,7 @@ components:
                 - CRITICAL
     TicketUpdated:
       name: ticket.updated
+      messageId: ticketUpdated
       payload:
         type: object
         required:
@@ -198,6 +219,7 @@ components:
                 - 'null'
     TicketMessageCreated:
       name: ticket.message.created
+      messageId: ticketMessageCreated
       payload:
         type: object
         required:
@@ -228,6 +250,7 @@ components:
                 format: uuid
     NotificationCreated:
       name: notification.created
+      messageId: notificationCreated
       payload:
         type: object
         required:

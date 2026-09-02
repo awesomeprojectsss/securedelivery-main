@@ -30,9 +30,12 @@ Owns:
 - customers/users
 - Devices
 - activation
+- Device credential provisioning
+- Device requests
 - monitoring-session persistence
 - generic telemetry/event ingestion
 - tickets
+- notifications
 - realtime publication
 - background server processing
 
@@ -59,6 +62,7 @@ Owns:
 - generic/specialized event presentation
 - realtime presentation
 - support UX
+- Device-request and notification UX
 
 ---
 
@@ -165,6 +169,24 @@ When changing a shared contract:
 6. update tests;
 7. update ADRs/documentation when required.
 
+## Documentation Languages and Audiences
+
+Use `docs/pt-BR/` as the primary developer and product-documentation entry point for the Brazilian team. Maintain the equivalent English navigation and essential rules under `docs/en/`.
+
+Keep machine-readable contracts unique under `docs/contracts/` and shared ADRs unique under `docs/decisions/`; do not create translated copies that can become competing sources of truth.
+
+Organize explanatory documentation so developers/QA, Project Manager/PO/business readers and prospective customers/partners can each find an explicit entry point. In SecureDelivery, `PM` means Project Manager, not Product Manager. When a contract or product rule changes, update both language guides that explain it.
+
+Keep `docs/terminology.md` beginner-friendly and bilingual. Add an abbreviation or technical term when it appears in project documentation and may not be clear to a new contributor.
+
+## CI/CD Policy
+
+GitHub Actions is the single automation platform unless an ADR changes this decision. The workspace validation entry point is `npm run ci`; keep local and hosted CI behavior aligned.
+
+Prefer one small workflow per repository using the project's ordinary lint, test and build commands. Do not create placeholder checks that imply an uninitialized application was tested.
+
+Do not add deployment automation until the hosting target, environments, secrets, health checks and rollback process are explicit. Future production deployment requires manual approval through a protected environment.
+
 ---
 
 ## Extensible IoT Protocol
@@ -219,4 +241,3 @@ event evidence:                high-frequency samples around event
 Do not reintroduce continuous normal server-side raw IMU telemetry without an explicit architecture decision.
 
 Do not reduce IMU sampling back to 1 Hz without test evidence and an explicit architecture decision.
-

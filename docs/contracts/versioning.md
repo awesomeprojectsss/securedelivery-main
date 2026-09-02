@@ -10,11 +10,23 @@ HTTP routes use a major API prefix:
 
 Breaking HTTP API changes require an explicit compatibility decision and may require a new API major version.
 
+OpenAPI document version `1.3.0` is a coordinated pre-implementation correction. It replaces activation-token path operations with body-based validate, confirm and credential-exchange operations. No production compatibility with the removed token-in-path shapes is promised; Server, Mobile and Dashboard must implement only the corrected contract. Once a production API is published, the normal major-version compatibility policy applies.
+
 ---
 
 ## IoT Schema Version
 
-Telemetry and Device-generated event envelopes carry:
+Telemetry envelopes carry:
+
+```json
+{
+  "schemaVersion": 3
+}
+```
+
+This version is independent from `/api/v1`.
+
+Device-event envelopes currently carry:
 
 ```json
 {
@@ -22,25 +34,29 @@ Telemetry and Device-generated event envelopes carry:
 }
 ```
 
-This version is independent from `/api/v1`.
-
 ---
 
 ## Current IoT Schema
 
-Current telemetry and Device-event envelope version:
+Current envelope versions:
 
 ```text
-schemaVersion = 2
+telemetry schemaVersion = 3
+Device-event schemaVersion = 2
 ```
 
-Version 2 introduces the lean telemetry model:
+Telemetry version 3 retains the lean telemetry model introduced in version 2 and adds explicit navigation quality semantics:
 
 - normal one-minute period summaries;
 - no continuous normal server-side raw IMU samples;
 - navigation/speed summary metrics;
 - event-specific high-frequency evidence;
-- event speed context.
+- event speed context;
+- required `navigation.status` and `navigation.source`;
+- nullable navigation metrics when reliable data is unavailable;
+- a prohibition on substituting zero for unknown navigation data.
+
+Version 3 is a coordinated breaking change from version 2 because it adds required quality fields and permits null metric values. Server, Mobile and Dashboard must deploy compatible handling before version 3 telemetry is enabled.
 
 ## Additive Changes
 

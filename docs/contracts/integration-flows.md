@@ -21,16 +21,20 @@ Customer scans QR
     ↓
 Dashboard/Web activation flow
     ↓
-GET /api/v1/device-activations/{token}
+client reads activation material from URL fragment locally
     ↓
-POST /api/v1/device-activations/{token}/confirm
+POST /api/v1/device-activations/validate
+body: { "activationToken": "<redacted>" }
+    ↓
+POST /api/v1/device-activations/confirm
+body: { "activationToken": "<redacted>" }
     ↓
 Server associates Device with Customer
     ↓
 Device = ACTIVE
 ```
 
-The exact credential/provisioning mechanism used by the Flutter Device to authenticate itself is a separate architectural decision.
+After confirmation, the Device sends the activation material once in the body of `POST /api/v1/device-credentials/exchange` to retrieve a Device credential. That credential is scoped to the activated `deviceId`, stored securely by Mobile and used for Device-authenticated synchronization calls. Activation material never appears in a path or query string and must be redacted from logs, traces and errors.
 
 ---
 
@@ -41,7 +45,7 @@ User enables monitoring
     ↓
 Flutter Device
     ↓
-creates stable clientSessionId
+creates and durably stores stable monitoringSessionId
     ↓
 POST /api/v1/devices/{deviceId}/monitoring-sessions
     ↓
@@ -58,6 +62,18 @@ GPS / ground speed up to 1 Hz
 event detection
 rolling evidence buffer
 1-minute telemetry aggregation
+```
+
+The same Device-generated `monitoringSessionId` is the canonical identifier returned by the Server and used by telemetry, events and the stop operation. Session creation is idempotent.
+
+If monitoring starts offline, the Device does not wait for the Server. It persists the session and all dependent data locally. On reconnect it synchronizes in this order:
+
+```text
+create/reconcile MonitoringSession with stable monitoringSessionId
+    ↓
+upload pending telemetry batches and events
+    ↓
+if monitoring already stopped, send Device-observed finishedAt
 ```
 
 ---
@@ -78,18 +94,23 @@ Raw IMU 50 Hz                     GPS/speed up to 1 Hz
    POST /api/v1/devices/{deviceId}/telemetry/batches
 ```
 
-Each normal period summary may contain:
+Each normal period summary contains:
 
 ```text
 latest location
 battery/connectivity/monitoring state
-navigation.distance.traveled
-navigation.moving.duration
-navigation.stopped.duration
-navigation.speed.maximum
+navigation.distanceTraveledMeters
+navigation.movingDurationSeconds
+navigation.stoppedDurationSeconds
+navigation.maximumSpeedMetersPerSecond
+navigation.status (VALID, PARTIAL or UNAVAILABLE)
+navigation.source (GNSS, GPS_DERIVED or UNAVAILABLE)
+extensible observations[] (possibly empty)
 ```
 
 The full raw IMU stream is not uploaded during normal operation.
+
+Unavailable navigation values are `null`, not zero. Only reliable numeric values contribute to KPIs.
 
 If offline:
 
@@ -138,7 +159,7 @@ preserve:
   - detector name/version
   - reliable speed/navigation context when available
   - attributes
-  - location
+  - location when reliable, otherwise explicit null
   - pre-event evidence
   - trigger evidence
   - post-event evidence
@@ -194,10 +215,14 @@ flush/persist pending normal data
     ↓
 sync when possible
     ↓
-POST /api/v1/devices/{deviceId}/monitoring-sessions/{sessionId}/stop
+POST /api/v1/devices/{deviceId}/monitoring-sessions/{monitoringSessionId}/stop
+
+body: { "finishedAt": "Device-observed UTC timestamp" }
 ```
 
 Pending offline data remains synchronized through store-and-forward.
+
+The Server never substitutes receipt time for `finishedAt`.
 
 ---
 
@@ -221,9 +246,31 @@ Dashboard
 
 A missed WebSocket message does not lose chat history because the message remains queryable from the server.
 
+Authoritative recovery endpoint:
+
+```text
+GET /api/v1/tickets/{ticketId}/messages?page=1&pageSize=20
+```
+
+Ticket resolution and closure are distinct explicit HTTP actions.
+
 ---
 
-## 7. Realtime Principle
+## 7. Notifications
+
+The Server persists a Notification before publishing `notification.created`.
+
+If the Dashboard misses the signal or reconnects, it recovers authoritative notification state through:
+
+```text
+GET /api/v1/notifications
+```
+
+Read state is updated through the HTTP API. WebSocket does not own notification state.
+
+---
+
+## 8. Realtime Principle
 
 ```text
 HTTP API = authoritative state
@@ -239,3 +286,5 @@ re-fetch affected authoritative state
 ```
 
 Do not use WebSocket as the only copy of business information.
+
+WebSocket connections authenticate human users and are authorized by role and Customer ownership. A Customer receives only tenant-authorized Device, event, ticket and notification signals.
