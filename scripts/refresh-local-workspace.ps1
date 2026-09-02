@@ -1,9 +1,20 @@
+﻿#Requires -Version 5.1
 [CmdletBinding()]
 param(
+    [ValidateNotNullOrEmpty()]
     [string]$Remote = "origin"
 )
 
 $ErrorActionPreference = "Stop"
+
+# PowerShell 7 can be configured to convert expected non-zero native exit
+# codes into terminating errors. This script evaluates Git exit codes itself
+# and must behave consistently with Windows PowerShell 5.1.
+if (Test-Path -LiteralPath "Variable:PSNativeCommandUseErrorActionPreference") {
+    $PSNativeCommandUseErrorActionPreference = $false
+}
+
+$script:RefreshFailures = @()
 
 # SecureDelivery - Atualização local segura do workspace
 #
@@ -41,20 +52,19 @@ function Write-Err([string]$Message) {
     Write-Host "[ERRO] $Message" -ForegroundColor Red
 }
 
+function Register-RefreshFailure([string]$Message) {
+    $script:RefreshFailures += $Message
+    Write-Err $Message
+}
+
 function Invoke-Git {
     param(
         [Parameter(Mandatory = $true)]
-        [string[]]$Arguments,
-        [switch]$AllowFailure
+        [string[]]$Arguments
     )
 
-    & git @Arguments
+    & git @Arguments | Out-Host
     $exitCode = $LASTEXITCODE
-
-    if (-not $AllowFailure -and $exitCode -ne 0) {
-        throw "Falha ao executar: git $($Arguments -join ' ')"
-    }
-
     return $exitCode
 }
 
@@ -102,7 +112,11 @@ function Update-LocalBranches {
     }
 
     Write-Info "$RepoLabel`: git fetch $Remote --prune --tags"
-    Invoke-Git -Arguments @("fetch", $Remote, "--prune", "--tags") | Out-Null
+    $fetchExitCode = Invoke-Git -Arguments @("fetch", $Remote, "--prune", "--tags")
+    if ($fetchExitCode -ne 0) {
+        Register-RefreshFailure "$RepoLabel`: falha no fetch."
+        return
+    }
 
     $currentBranch = (& git symbolic-ref --short -q HEAD 2>$null)
     if ($LASTEXITCODE -ne 0) {
@@ -148,7 +162,7 @@ function Update-LocalBranches {
                     Write-Ok "$RepoLabel`: $branch atualizada para $Remote/$branch."
                 }
                 else {
-                    Write-Err "$RepoLabel`: não foi possível fazer fast-forward de '$branch'."
+                    Register-RefreshFailure "$RepoLabel`: não foi possível fazer fast-forward de '$branch'."
                 }
             }
             else {
@@ -163,7 +177,7 @@ function Update-LocalBranches {
                     Write-Ok "$RepoLabel`: $branch atualizada para $Remote/$branch."
                 }
                 else {
-                    Write-Err "$RepoLabel`: não foi possível atualizar '$branch'."
+                    Register-RefreshFailure "$RepoLabel`: não foi possível atualizar '$branch'."
                 }
             }
 
@@ -203,9 +217,16 @@ function Update-Repository {
         Write-Info "===== $Label ====="
         Update-LocalBranches -RepoLabel $Label
     }
+    catch {
+        Register-RefreshFailure "$Label`: falha inesperada: $($_.Exception.Message)"
+    }
     finally {
         Pop-Location
     }
+}
+
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    throw "Git não foi encontrado no PATH. Instale o Git for Windows antes de executar este script."
 }
 
 & git rev-parse --show-toplevel *> $null
@@ -231,13 +252,23 @@ if (Test-Path -LiteralPath $gitmodules -PathType Leaf) {
     try {
         Write-Host ""
         Write-Info "Sincronizando configuração dos submódulos..."
-        Invoke-Git -Arguments @("submodule", "sync", "--recursive") | Out-Null
+        $syncExitCode = Invoke-Git -Arguments @("submodule", "sync", "--recursive")
+        if ($syncExitCode -ne 0) {
+            Register-RefreshFailure "workspace principal: falha ao sincronizar a configuração dos submódulos."
+        }
 
         Write-Info "Inicializando submódulos ausentes..."
-        Invoke-Git -Arguments @("submodule", "update", "--init", "--recursive") | Out-Null
+        $updateExitCode = Invoke-Git -Arguments @("submodule", "update", "--init", "--recursive")
+        if ($updateExitCode -ne 0) {
+            Register-RefreshFailure "workspace principal: falha ao inicializar ou atualizar os submódulos."
+        }
 
         $submoduleLines = & git submodule status --recursive 2>$null
         $submodulePaths = @()
+
+        if ($LASTEXITCODE -ne 0) {
+            Register-RefreshFailure "workspace principal: não foi possível listar os submódulos."
+        }
 
         foreach ($line in $submoduleLines) {
             $trimmed = $line.Trim()
@@ -250,6 +281,10 @@ if (Test-Path -LiteralPath $gitmodules -PathType Leaf) {
         }
 
         $submodulePaths = $submodulePaths | Sort-Object -Unique
+    }
+    catch {
+        Register-RefreshFailure "workspace principal: falha inesperada durante a preparação dos submódulos: $($_.Exception.Message)"
+        $submodulePaths = @()
     }
     finally {
         Pop-Location
@@ -265,6 +300,14 @@ else {
 }
 
 Write-Host ""
-Write-Ok "Refresh concluído."
+if ($script:RefreshFailures.Count -eq 0) {
+    Write-Ok "Refresh concluído sem erros."
+}
+else {
+    Write-Warn "Refresh concluído com $($script:RefreshFailures.Count) falha(s). Os demais repositórios seguros foram verificados."
+    foreach ($failure in $script:RefreshFailures) {
+        Write-Warn "- $failure"
+    }
+}
 Write-Info "Nenhum push, rebase, reset --hard ou merge commit foi executado."
 Write-Info "Branches divergidas ou com commits locais foram preservadas."

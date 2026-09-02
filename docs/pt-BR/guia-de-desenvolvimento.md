@@ -8,7 +8,19 @@
 | `securedelivery-mobile` | sensores, detecção local, evidência, persistência offline, lotes e sincronização |
 | `securedelivery-dashboard` | gestão, monitoramento, eventos, solicitações, notificações e suporte |
 
-Antes de uma mudança entre repositórios, execute `./scripts/refresh-local-workspace.sh`, leia o `AGENTS.md` da raiz, o `AGENTS.md` do repositório alvo, sua arquitetura e os contratos/ADRs envolvidos. Preserve avisos de branch divergente ou com alterações locais.
+Antes de uma mudança entre repositórios, atualize o workspace com o comando do seu ambiente:
+
+```bash
+# Linux, macOS ou Git Bash
+./scripts/refresh-local-workspace.sh
+```
+
+```powershell
+# Windows PowerShell 5.1 ou PowerShell 7
+.\scripts\refresh-local-workspace.ps1
+```
+
+Depois, leia o `AGENTS.md` da raiz, o `AGENTS.md` do repositório alvo, sua arquitetura e os contratos/ADRs envolvidos. Preserve e investigue avisos de branch divergente, alterações locais ou falhas de rede; o script não descarta histórico para resolvê-los.
 
 ## Ordem de uma mudança compartilhada
 
