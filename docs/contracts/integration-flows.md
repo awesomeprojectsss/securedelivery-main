@@ -14,7 +14,7 @@ Server
 Device = PENDING_ACTIVATION
 ```
 
-The mobile application exposes activation material as a QR Code.
+The mobile application exposes the Device's persistent high-entropy activation code as a QR Code. Future hardware may print or permanently display the same Device-specific code.
 
 ```text
 Customer scans QR
@@ -34,7 +34,9 @@ Server associates Device with Customer
 Device = ACTIVE
 ```
 
-After confirmation, the Device sends the activation material once in the body of `POST /api/v1/device-credentials/exchange` to retrieve a Device credential. That credential is scoped to the activated `deviceId`, stored securely by Mobile and used for Device-authenticated synchronization calls. Activation material never appears in a path or query string and must be redacted from logs, traces and errors.
+While the Device remains `PENDING_ACTIVATION`, the code has no time-based expiration and may be validated repeatedly. The first authenticated confirmation activates and associates the Device atomically. Further attempts return `ALREADY_ACTIVATED` and never transfer ownership.
+
+After confirmation, the Device sends the activation material once in the body of `POST /api/v1/device-credentials/exchange` to retrieve a Device credential. That credential is scoped to the activated `deviceId`, stored securely by Mobile and used for Device-authenticated synchronization calls. In the MVP it is valid until explicit revocation, Device inactivation/removal or Customer inactivation. Activation material never appears in a path or query string, activation attempts are rate-limited, and secrets are redacted from logs, traces and errors.
 
 ---
 

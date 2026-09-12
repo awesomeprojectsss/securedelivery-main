@@ -23,6 +23,8 @@ OpenAPI e AsyncAPI são canônicos. Este guia traduz a intenção, mas não rede
 4. O Device faz a troca única em `POST /device-credentials/exchange`.
 5. Logs, traces e erros sempre removem o valor.
 
+O código tem alta entropia e não expira enquanto o Device está `PENDING_ACTIVATION`; ele pode ser validado novamente, mas não autoriza APIs do Device. A primeira confirmação ativa e associa a SmartBox. Depois disso, novas tentativas retornam `ALREADY_ACTIVATED` e nunca transferem propriedade. As tentativas são limitadas pelo Server.
+
 ### Qualidade de navegação
 
 | `status` | `source` | Métricas |
@@ -42,11 +44,17 @@ PENDING --cancel(reason)-----> CANCELLED
 
 Somente o Server autoriza e efetiva a transição. Estados terminais não voltam para `PENDING` e não mudam entre si.
 
+Cada solicitação representa exatamente um Device, aceita somente `notes` opcionais e só pode ser atendida com um Device `PENDING_ACTIVATION`, sem Customer e não removido.
+
+### Confirmação de telemetria por período
+
+Mobile envia vários períodos em um lote, mas cada período possui `periodId` estável e recebe seu próprio resultado. Itens aceitos podem ser removidos localmente; itens rejeitados permanecem para diagnóstico ou nova tentativa. Um item inválido não descarta os irmãos válidos.
+
 ## Versões atuais
 
 - rota HTTP: `/api/v1`;
-- documento OpenAPI: `1.3.0`;
-- envelope de telemetria: `schemaVersion = 3`;
+- documento OpenAPI: `1.4.0`;
+- envelope de telemetria: `schemaVersion = 4`;
 - envelope de evento do Device: `schemaVersion = 2`.
 
 [Voltar ao início](README.md) · [Guia de desenvolvimento](guia-de-desenvolvimento.md)

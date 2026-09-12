@@ -59,7 +59,9 @@ Human users authenticate with `UserBearerAuth`. The Server applies RBAC and Cust
 
 Devices authenticate with `DeviceBearerAuth`. A Device credential represents one specific `deviceId` and cannot authorize ingestion for another Device.
 
-Activation material is a short-lived bootstrap secret, separate from human and Device credentials. It is sent only in JSON request bodies, never in URL paths or query strings. After an authenticated Customer confirms activation, the Device exchanges the activation material once for a Device credential and stores that credential using secure operating-system storage. All layers redact activation material from logs, traces and errors.
+Activation material is a persistent, high-entropy bootstrap code associated with the physical Device, separate from human and Device credentials. It has no time-based expiration while the Device is `PENDING_ACTIVATION`, may be validated repeatedly and never authorizes Device APIs by itself. It is sent only in JSON request bodies, never in URL paths or query strings. The first authenticated Customer confirmation atomically activates and associates the Device; later attempts return `ALREADY_ACTIVATED`. The Device then exchanges the confirmed material once for a Device credential and stores that credential using secure operating-system storage. All layers rate-limit activation attempts and redact activation material from logs, traces and errors.
+
+The MVP Device credential has no time-based expiration. It remains scoped to one `deviceId` and valid only until explicit revocation, Device inactivation/removal or Customer inactivation. An expired or revoked credential never authorizes ingestion; offline data stays queued until authentication succeeds.
 
 WebSocket connections use authenticated human identity and the same RBAC/tenant-isolation rules as HTTP. A Customer must never receive another Customer's realtime data.
 
@@ -80,6 +82,18 @@ SmartBox
 ```
 
 Do not use `smartbox` in API paths, cross-repository DTO names or persistence entity names.
+
+---
+
+## Access Governance
+
+`ADMIN` is an internal platform-wide operator, not a Customer-scoped administrator. Only `SUPER_ADMIN` manages privileged `ADMIN` and `SUPER_ADMIN` accounts. An `ADMIN` may manage Customers and `CUSTOMER` users according to RBAC. Email addresses are globally unique.
+
+An administrative password reset revokes all existing sessions and marks the temporary password for mandatory change. The Server prevents deactivation, removal or demotion of the last active `SUPER_ADMIN`.
+
+Customer inactivation blocks Customer-user authentication and access, revokes their sessions and rejects new monitoring, telemetry and event writes from owned Devices. Historical records remain available only to authorized internal operators. Pending DeviceRequests and support tickets remain operable by those administrators.
+
+Security audit records are retained for 18 months by default, then deleted or irreversibly anonymized unless a documented legal obligation, investigation or legal hold applies.
 
 ---
 
@@ -257,11 +271,11 @@ IoT payloads include:
 
 ```json
 {
-  "schemaVersion": 3
+  "schemaVersion": 4
 }
 ```
 
-`schemaVersion` versions each payload/envelope schema. Telemetry currently uses version 3; Device events currently use version 2. A version value is interpreted in the context of its envelope type.
+`schemaVersion` versions each payload/envelope schema. Telemetry currently uses version 4; Device events currently use version 2. A version value is interpreted in the context of its envelope type.
 
 It is independent from HTTP API versioning such as:
 

@@ -30,15 +30,23 @@ O smartphone representa o futuro hardware IoT e é fixado horizontalmente à cai
 - eventos, notificações e suporte;
 - solicitações de SmartBox (`DeviceRequest`) com conclusão ou cancelamento explícito.
 
+O aplicativo-Device do MVP suporta Android 10 ou superior. O monitoramento usa no máximo 50 MiB para payloads locais, tenta sincronizar a cada minuto e recebe confirmação individual por período mesmo quando envia vários períodos em lote. A evidência usa uma janela fixa de dois segundos antes e dois segundos depois do gatilho, além do próprio intervalo do evento.
+
+Para segurança operacional, o monitoramento não inicia abaixo de 15% de bateria sem carregamento, para quando o Android informa estado térmico `SEVERE` ou pior e respeita o máximo de 12 horas acumuladas em um período móvel de 24 horas. Os limites dos detectores de movimento ainda dependem de estudo e testes em aparelhos reais; não devem ser inventados durante a implementação.
+
 Ficam fora do MVP: temperatura, faturamento, ecommerce, estoque, rastreamento logístico da solicitação e armazenamento contínuo da rota ou da IMU bruta.
 
 ## Papéis
 
 - `SUPER_ADMIN`: administra a plataforma e ações privilegiadas.
-- `ADMIN`: gerencia clientes, Devices e suporte dentro das regras permitidas.
+- `ADMIN`: operador interno com visão de plataforma; gerencia Customers, usuários `CUSTOMER`, Devices e suporte dentro das regras permitidas.
 - `CUSTOMER`: acompanha somente seus recursos, ativa SmartBoxes, consulta eventos e usa o suporte.
 
 O Server sempre aplica RBAC e isolamento entre clientes.
+
+Somente `SUPER_ADMIN` administra contas privilegiadas. E-mails são únicos globalmente. Redefinição administrativa usa senha temporária, revoga sessões e exige troca no próximo acesso. Ao desativar um Customer, seus usuários perdem acesso e o Server deixa de aceitar novos dados dos seus Devices, preservando o histórico para administradores autorizados. Registros de auditoria têm retenção padrão de 18 meses, salvo obrigação legal, investigação ou retenção jurídica documentada.
+
+Uma solicitação representa uma SmartBox e contém apenas observações opcionais. O Device é criado diretamente em `PENDING_ACTIVATION`. Seu QR usa um código opaco sem expiração enquanto aguarda ativação; pode ser lido novamente, mas a primeira confirmação associa o Customer e novas tentativas retornam “já ativado”, sem transferir propriedade.
 
 ## Para clientes e parceiros
 

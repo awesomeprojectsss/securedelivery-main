@@ -10,7 +10,7 @@ HTTP routes use a major API prefix:
 
 Breaking HTTP API changes require an explicit compatibility decision and may require a new API major version.
 
-OpenAPI document version `1.3.0` is a coordinated pre-implementation correction. It replaces activation-token path operations with body-based validate, confirm and credential-exchange operations. No production compatibility with the removed token-in-path shapes is promised; Server, Mobile and Dashboard must implement only the corrected contract. Once a production API is published, the normal major-version compatibility policy applies.
+OpenAPI document version `1.4.0` is a coordinated pre-implementation correction. It retains the body-based activation operations introduced in 1.3, aligns governance and persistent pending-Device activation semantics, and introduces per-period telemetry acknowledgement. No production compatibility with superseded pre-implementation shapes is promised; Server, Mobile and Dashboard must implement only the corrected contract. Once a production API is published, the normal major-version compatibility policy applies.
 
 ---
 
@@ -20,7 +20,7 @@ Telemetry envelopes carry:
 
 ```json
 {
-  "schemaVersion": 3
+  "schemaVersion": 4
 }
 ```
 
@@ -41,11 +41,11 @@ Device-event envelopes currently carry:
 Current envelope versions:
 
 ```text
-telemetry schemaVersion = 3
+telemetry schemaVersion = 4
 Device-event schemaVersion = 2
 ```
 
-Telemetry version 3 retains the lean telemetry model introduced in version 2 and adds explicit navigation quality semantics:
+Telemetry version 4 retains the lean telemetry and explicit navigation quality model from version 3 and adds stable per-period identity and acknowledgement semantics:
 
 - normal one-minute period summaries;
 - no continuous normal server-side raw IMU samples;
@@ -54,9 +54,11 @@ Telemetry version 3 retains the lean telemetry model introduced in version 2 and
 - event speed context;
 - required `navigation.status` and `navigation.source`;
 - nullable navigation metrics when reliable data is unavailable;
-- a prohibition on substituting zero for unknown navigation data.
+- a prohibition on substituting zero for unknown navigation data;
+- a Device-generated `periodId` that remains stable across retries and retry batches;
+- one acknowledgement result per period, including partial batch rejection.
 
-Version 3 is a coordinated breaking change from version 2 because it adds required quality fields and permits null metric values. Server, Mobile and Dashboard must deploy compatible handling before version 3 telemetry is enabled.
+Version 4 is a coordinated breaking change from version 3 because it adds a required `periodId` and changes the batch response to per-period results. Server and Mobile must deploy compatible handling before version 4 telemetry is enabled.
 
 ## Additive Changes
 

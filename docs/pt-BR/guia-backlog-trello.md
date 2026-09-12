@@ -167,7 +167,7 @@ quando um Customer autenticado confirma a ativação,
 então o Device é associado ao Customer correto e fica ACTIVE.
 ```
 
-Inclua cenários de falha relevantes, como expirado, já utilizado, sem permissão, offline ou tentativa de outro Customer.
+Inclua cenários de falha relevantes, como código inválido, Device já ativado, limite de tentativas, falta de permissão, operação offline ou tentativa de outro Customer.
 
 ### 5. Mapeie componentes e dependências
 
@@ -537,7 +537,7 @@ Critérios essenciais:
 - QR não revela identificador interno como credencial;
 - segredo fica no fragmento do link e é enviado apenas em body JSON;
 - Customer precisa estar autenticado para confirmar;
-- token expirado, inválido ou usado retorna erro compreensível;
+- código inválido, tentativa limitada ou Device já ativado retorna erro compreensível;
 - Device troca o material uma única vez por credencial própria;
 - associação respeita isolamento de Customer;
 - logs, traces e erros não contêm o segredo;

@@ -212,6 +212,6 @@ navigation.stoppedDurationSeconds
 navigation.maximumSpeedMetersPerSecond
 ```
 
-These four KPI inputs are structured platform fields in telemetry schema version 3. The summary also declares navigation quality and source, and uses `null` rather than zero for unavailable metrics. Generic `observations[]` remains available for future extensible business-value measurements.
+These four KPI inputs are structured platform fields in telemetry schema version 4. The summary also declares navigation quality and source, uses `null` rather than zero for unavailable metrics, and carries a stable `periodId` for per-period acknowledgement. Generic `observations[]` remains available for future extensible business-value measurements.
 
 Motion events may additionally carry speed-at-event and short pre-event speed context.

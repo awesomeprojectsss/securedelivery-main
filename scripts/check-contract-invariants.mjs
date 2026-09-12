@@ -16,7 +16,7 @@ function assert(condition, message) {
   }
 }
 
-assert(api.info.version === '1.3.0', 'Unexpected OpenAPI document version.');
+assert(api.info.version === '1.4.0', 'Unexpected OpenAPI document version.');
 assert(
   !Object.keys(paths).some((path) => path.includes('{token}')),
   'Activation material must not appear in URL paths.',
@@ -54,8 +54,28 @@ for (const status of ['VALID', 'PARTIAL', 'UNAVAILABLE']) {
   );
 }
 
-assert(schemas.TelemetryBatch.properties.schemaVersion.const === 3, 'Telemetry must use schema version 3.');
+assert(schemas.TelemetryBatch.properties.schemaVersion.const === 4, 'Telemetry must use schema version 4.');
+assert(
+  schemas.TelemetryPeriodSummary.required.includes('periodId'),
+  'Every telemetry period must require a stable periodId.',
+);
+assert(
+  paths['/devices/{deviceId}/telemetry/batches'].post.responses['202'].content['application/json'].schema
+    .$ref.endsWith('/TelemetryBatchAcknowledgement'),
+  'Telemetry batch ingestion must return per-period acknowledgement.',
+);
+assert(
+  schemas.TelemetryBatchAcknowledgement.required.includes('items'),
+  'Telemetry batch acknowledgement must include item results.',
+);
 assert(schemas.DeviceEvent.properties.schemaVersion.const === 2, 'Device events must use schema version 2.');
+
+assert(
+  !schemas.DeviceActivation.properties.status.enum.includes('EXPIRED'),
+  'Pending-Device activation code must not expose a time-expired state in the MVP.',
+);
+assert(schemas.User.required.includes('mustChangePassword'), 'User must expose forced-password-change state.');
+assert(schemas.User.required.includes('customerId'), 'User must expose tenant ownership explicitly.');
 
 for (const path of [
   '/device-requests/{requestId}/fulfill',
