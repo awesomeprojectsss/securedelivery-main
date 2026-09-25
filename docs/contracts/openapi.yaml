@@ -1,13 +1,14 @@
 openapi: 3.1.0
 info:
   title: SecureDelivery API
-  version: 1.3.0
+  version: 1.4.0
   license:
     name: GNU General Public License v3.0
     identifier: GPL-3.0-only
   description: Canonical HTTP contract for SecureDelivery. Device is the technical domain term; SmartBox is a product-facing
-    UI label. Telemetry schemaVersion 3 uses lean one-minute summaries and explicit navigation quality. Device-event
-    schemaVersion 2 carries event-specific high-frequency evidence.
+    UI label. Telemetry schemaVersion 4 uses lean one-minute summaries, explicit navigation quality and stable period IDs. Device-event
+    schemaVersion 2 carries event-specific high-frequency evidence. Version 1.4 adds governance, persistent pending-Device
+    activation codes and per-period telemetry acknowledgement.
 servers:
 - url: /api/v1
 security:
@@ -176,6 +177,7 @@ paths:
       - Users
       operationId: createUser
       summary: Create a user according to RBAC
+      description: SUPER_ADMIN creates privileged ADMIN/SUPER_ADMIN accounts. ADMIN may create CUSTOMER users. Email is globally unique.
       requestBody:
         required: true
         content:
@@ -262,6 +264,7 @@ paths:
       - Users
       operationId: resetUserPassword
       summary: Reset an allowed user's password
+      description: Sets a temporary password, revokes all sessions for the affected user and requires password change before normal protected use. Only SUPER_ADMIN may reset a privileged account.
       requestBody:
         required: true
         content:
@@ -281,6 +284,7 @@ paths:
       - Users
       operationId: changeUserRole
       summary: Change an allowed user's role
+      description: SUPER_ADMIN only. The operation must not demote or otherwise eliminate the last active SUPER_ADMIN.
       requestBody:
         required: true
         content:
@@ -356,6 +360,7 @@ paths:
       - Customers
       operationId: updateCustomer
       summary: Update one authorized Customer
+      description: Setting status to INACTIVE blocks Customer-user authentication and access, revokes their sessions, and rejects new Device monitoring/telemetry/event writes while preserving history and administrator access to pending requests and tickets.
       requestBody:
         required: true
         content:
@@ -403,6 +408,7 @@ paths:
       - Devices
       operationId: createDevice
       summary: Create a Device
+      description: ADMIN or SUPER_ADMIN creates the Device directly in PENDING_ACTIVATION. The MVP has no CREATED status.
       requestBody:
         required: true
         content:
@@ -471,7 +477,8 @@ paths:
       tags:
       - Devices
       operationId: validateDeviceActivation
-      summary: Validate short-lived Device activation material
+      summary: Validate a persistent pending-Device activation code
+      description: The high-entropy code has no time-based expiration while the Device is PENDING_ACTIVATION and may be validated repeatedly. Attempts are rate-limited. An activated Device returns ALREADY_ACTIVATED.
       requestBody:
         required: true
         content:
@@ -493,6 +500,7 @@ paths:
       - Devices
       operationId: confirmDeviceActivation
       summary: Confirm activation as an authenticated Customer
+      description: The first successful confirmation atomically associates the Device and makes it ACTIVE. Later attempts return a conflict and never transfer ownership.
       requestBody:
         required: true
         content:
@@ -515,7 +523,7 @@ paths:
       - Devices
       operationId: provisionDeviceCredential
       summary: Exchange confirmed activation material once for a Device credential
-      description: The short-lived activation token is sent only in the JSON body for this one-time exchange. It is not a human or Device bearer credential and must never appear in paths, query strings or logs.
+      description: The persistent activation code is sent only in the JSON body for this one-time post-confirmation exchange. It is not a human or Device bearer credential and must never appear in paths, query strings or logs. The MVP Device credential has no time-based expiration and remains valid until explicit revocation, Device inactivation/removal or Customer inactivation.
       requestBody:
         required: true
         content:
@@ -616,11 +624,11 @@ paths:
               $ref: '#/components/schemas/TelemetryBatch'
       responses:
         '202':
-          description: Batch accepted or previously accepted
+          description: Valid batch envelope processed with an acknowledgement for every telemetry period; individual items may be rejected
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IngestionAcknowledgement'
+                $ref: '#/components/schemas/TelemetryBatchAcknowledgement'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -628,7 +636,8 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
       description: Normal telemetry contains compact period summaries rather than continuous raw IMU samples. Offline
-        Devices may send multiple pending periods in one idempotent batch.
+        Devices may send multiple pending periods in one idempotent batch. A malformed envelope fails as a whole; otherwise
+        every period receives an independent result and one rejected item does not prevent valid siblings from being accepted.
   /devices/{deviceId}/events:
     post:
       security:
@@ -931,7 +940,7 @@ paths:
       - DeviceRequests
       operationId: fulfillDeviceRequest
       summary: Fulfill a pending DeviceRequest by associating the supplied Device
-      description: ADMIN or SUPER_ADMIN only. The request and Device must be eligible, belong to the intended Customer and remain auditable.
+      description: ADMIN or SUPER_ADMIN only. The request must be PENDING and the Device must be PENDING_ACTIVATION, unassigned and not removed. Fulfillment atomically associates it with the requesting Customer and remains auditable.
       parameters:
       - $ref: '#/components/parameters/DeviceRequestId'
       requestBody:
@@ -1264,6 +1273,7 @@ components:
         email:
           type: string
           format: email
+          description: Globally unique across the platform.
         role:
           $ref: '#/components/schemas/UserRole'
         password:
@@ -1274,6 +1284,7 @@ components:
           - string
           - 'null'
           format: uuid
+          description: Required for CUSTOMER and null for platform-wide ADMIN/SUPER_ADMIN identities.
     UpdateUserRequest:
       type: object
       additionalProperties: false
@@ -1310,6 +1321,8 @@ components:
       - email
       - role
       - status
+      - mustChangePassword
+      - customerId
       properties:
         id:
           type: string
@@ -1319,13 +1332,23 @@ components:
         email:
           type: string
           format: email
+          description: Globally unique across the platform.
         role:
           $ref: '#/components/schemas/UserRole'
+        customerId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Owning tenant for CUSTOMER; null for platform-wide ADMIN and SUPER_ADMIN.
         status:
           type: string
           enum:
           - ACTIVE
           - INACTIVE
+        mustChangePassword:
+          type: boolean
+          description: True after administrative reset until the user successfully changes the temporary password.
         theme:
           $ref: '#/components/schemas/Theme'
     Customer:
@@ -1500,7 +1523,6 @@ components:
           type: string
           enum:
           - VALID
-          - EXPIRED
           - ALREADY_ACTIVATED
           - INVALID
     DeviceActivationTokenRequest:
@@ -1513,7 +1535,7 @@ components:
           type: string
           minLength: 32
           writeOnly: true
-          description: Short-lived bootstrap secret. Accept only in a JSON request body; redact from logs, traces and error reports.
+          description: Persistent high-entropy bootstrap code while the Device is PENDING_ACTIVATION. It is not a bearer credential. Accept only in a JSON request body; rate-limit attempts and redact from logs, traces and error reports.
     DeviceCredentialProvisioning:
       type: object
       additionalProperties: false
@@ -1736,8 +1758,8 @@ components:
       properties:
         schemaVersion:
           type: integer
-          const: 3
-          description: Current lean telemetry envelope schema version with explicit navigation quality.
+          const: 4
+          description: Current lean telemetry envelope schema version with explicit navigation quality, stable period IDs and per-period acknowledgement.
         batchId:
           type: string
           format: uuid
@@ -1856,6 +1878,43 @@ components:
         receivedAt:
           type: string
           format: date-time
+    TelemetryPeriodIngestionResult:
+      type: object
+      additionalProperties: false
+      required:
+      - periodId
+      - status
+      properties:
+        periodId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/IngestionStatus'
+        code:
+          type: string
+          description: Stable machine-readable reason when status is REJECTED.
+        message:
+          type: string
+          description: Human-readable diagnostic when status is REJECTED; clients branch on code, not this value.
+    TelemetryBatchAcknowledgement:
+      type: object
+      additionalProperties: false
+      required:
+      - batchId
+      - receivedAt
+      - items
+      properties:
+        batchId:
+          type: string
+          format: uuid
+        receivedAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/TelemetryPeriodIngestionResult'
     CreateTicketRequest:
       type: object
       additionalProperties: false
@@ -2259,6 +2318,7 @@ components:
     TelemetryPeriodSummary:
       type: object
       required:
+      - periodId
       - periodStartedAt
       - periodFinishedAt
       - deviceState
@@ -2267,6 +2327,10 @@ components:
       - observations
       additionalProperties: false
       properties:
+        periodId:
+          type: string
+          format: uuid
+          description: Device-generated stable period identifier reused across retries and retry batches.
         periodStartedAt:
           type: string
           format: date-time

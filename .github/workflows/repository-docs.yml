@@ -31,9 +31,13 @@ jobs:
           import path from 'node:path';
 
           const ignored = new Set(['.git', 'node_modules']);
+          const ignoredPaths = new Set([
+            path.join('.agents', 'skills', 'prisma-8'),
+            path.join('.claude', 'skills', 'prisma-8'),
+          ]);
           const walk = (directory) => fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-            if (entry.isDirectory() && ignored.has(entry.name)) return [];
             const entryPath = path.join(directory, entry.name);
+            if (entry.isDirectory() && (ignored.has(entry.name) || ignoredPaths.has(entryPath))) return [];
             return entry.isDirectory() ? walk(entryPath) : [entryPath];
           });
 

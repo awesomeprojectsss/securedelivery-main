@@ -19,6 +19,8 @@ motion.strong_impact
 motion.critical_inclination
 motion.possible_fall
 motion.abnormal_movement
+device.storage_low
+device.sync_partial_failure
 ```
 
 Future examples:
@@ -128,7 +130,7 @@ This context supports correlation analysis without requiring full per-second rou
 
 ## Evidence Window
 
-Initial MVP recommendation:
+Fixed MVP window:
 
 ```text
 2 seconds before trigger
@@ -140,7 +142,7 @@ event/trigger interval
 
 With a 50 Hz IMU baseline, a four-second surrounding window can preserve roughly 200 high-frequency samples, plus any samples covering the trigger interval itself.
 
-The exact evidence window should remain configurable.
+Changing the evidence window after the MVP requires an explicit decision.
 
 Evidence is persisted locally before synchronization.
 

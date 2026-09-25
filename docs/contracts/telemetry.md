@@ -173,6 +173,7 @@ Example:
 
 ```json
 {
+  "periodId": "019912a7-b2b8-7892-a441-bf9fdcbcab24",
   "periodStartedAt": "2026-08-25T00:10:00.000Z",
   "periodFinishedAt": "2026-08-25T00:10:59.999Z",
 
@@ -226,11 +227,12 @@ Example:
 
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "batchId": "019912a7-b2b8-7892-a441-bf9fdcbcab23",
   "monitoringSessionId": "019912a6-b01c-7ba4-b842-f64abfe20f02",
   "periods": [
     {
+      "periodId": "019912a7-b2b8-7892-a441-bf9fdcbcab24",
       "periodStartedAt": "2026-08-25T00:10:00.000Z",
       "periodFinishedAt": "2026-08-25T00:10:59.999Z",
       "deviceState": {
@@ -274,21 +276,44 @@ The Device generates `monitoringSessionId` before monitoring begins and persists
 
 ## Idempotency
 
-`batchId` is generated before transmission.
+`batchId` and every `periodId` are generated before transmission.
 
 Retries of the same logical batch reuse the same `batchId`.
+
+Retries of the same logical period reuse the same `periodId`, even if Mobile places that period in a later retry batch.
+
+The Server acknowledges every period independently. A malformed batch envelope fails as a whole. Once the envelope is valid, one rejected period does not prevent valid sibling periods from being accepted.
 
 Acknowledgement:
 
 ```json
 {
-  "id": "019912a7-b2b8-7892-a441-bf9fdcbcab23",
-  "status": "ACCEPTED",
-  "receivedAt": "2026-08-25T00:11:03.121Z"
+  "batchId": "019912a7-b2b8-7892-a441-bf9fdcbcab23",
+  "receivedAt": "2026-08-25T00:11:03.121Z",
+  "items": [
+    {
+      "periodId": "019912a7-b2b8-7892-a441-bf9fdcbcab24",
+      "status": "ACCEPTED"
+    }
+  ]
 }
 ```
 
-A repeated accepted batch returns `ALREADY_ACCEPTED`.
+A repeated accepted period returns `ALREADY_ACCEPTED`. A rejected result includes a stable machine-readable `code` and human-readable `message`. Mobile retains rejected items for diagnosis/retry and raises `device.sync_partial_failure` for later synchronization.
+
+---
+
+## MVP Mobile Operational Limits
+
+- supported operating system: Android 10 (API level 29) or later;
+- managed local monitoring payload budget: 50 MiB;
+- baseline retry interval: one minute, while honoring server `Retry-After`;
+- fixed evidence window: two seconds before, the trigger interval, and two seconds after;
+- monitoring is blocked below 15% battery unless charging;
+- monitoring stops when Android thermal status is `SEVERE` or worse;
+- monitoring is limited to 12 accumulated hours in a rolling 24-hour period.
+
+When storage pressure occurs, Mobile first deletes acknowledged data, then the oldest normal telemetry, and preserves unsynchronized events/evidence for as long as the hard budget permits. If it cannot store a new record safely, it must not claim durability and raises `device.storage_low` for later synchronization.
 
 ---
 

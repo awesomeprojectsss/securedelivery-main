@@ -32,7 +32,7 @@ The invariants are:
 
 Only numeric, reliable values contribute to KPIs. The structured fields are the authoritative source for MVP navigation KPIs.
 
-The optional/extensible `observations` array remains available for future business-value measurements. Unknown valid observation keys remain ingestible. The four structured navigation values must not also be duplicated as generic observations in telemetry schema version 3.
+The optional/extensible `observations` array remains available for future business-value measurements. Unknown valid observation keys remain ingestible. The four structured navigation values must not also be duplicated as generic observations in telemetry schema version 3 or its version 4 successor defined by ADR-015.
 
 Normal summaries continue to exclude continuous raw IMU history.
 

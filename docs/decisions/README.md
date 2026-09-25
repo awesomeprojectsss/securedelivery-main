@@ -22,3 +22,6 @@ Current shared decisions:
 - [ADR-010: Structured MVP Navigation Summary with Extensible Observations](ADR-010-structured-navigation-summary.md)
 - [ADR-011: Minimal DeviceRequest Resource](ADR-011-device-request-resource.md)
 - [ADR-012: Simple CI/CD Baseline](ADR-012-simple-ci-cd-baseline.md)
+- [ADR-013: Access Governance and Audit Retention](ADR-013-access-governance-and-retention.md)
+- [ADR-014: Device Lifecycle and Persistent Physical Activation Code](ADR-014-device-lifecycle-and-persistent-activation-code.md)
+- [ADR-015: MVP Mobile Monitoring Operational Profile](ADR-015-mobile-monitoring-operational-profile.md)

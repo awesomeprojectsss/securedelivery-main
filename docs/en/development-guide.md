@@ -39,9 +39,10 @@ Never invent a local payload that contradicts OpenAPI or AsyncAPI.
 - Human APIs use `UserBearerAuth`; Device ingestion uses `DeviceBearerAuth` scoped to one `deviceId`.
 - Server enforces RBAC and Customer isolation for HTTP and WebSocket.
 - Activation secrets appear only in JSON bodies, never in a path, query, log, trace or error.
+- The QR code does not expire while `PENDING_ACTIVATION`, but it is not a credential; after first activation, later attempts return `ALREADY_ACTIVATED`.
 - Normal acquisition remains 50 Hz IMU and up-to-1 Hz GPS locally, with one-minute Server summaries.
-- Telemetry navigation follows schema version 3; unavailable metrics are `null`, not zero, and only reliable numbers enter KPIs.
-- Device-created identifiers make offline synchronization idempotent.
+- Telemetry follows schema version 4; every period has a stable `periodId`, acknowledgement is per period, unavailable navigation metrics are `null`, not zero, and only reliable numbers enter KPIs.
+- Device-created `monitoringSessionId`, `batchId`, `periodId` and `eventId` values make offline synchronization idempotent.
 - Observation keys and Device event types remain extensible.
 - Only `PENDING` DeviceRequests transition; fulfillment and cancellation are explicit, authorized, atomic and auditable.
 

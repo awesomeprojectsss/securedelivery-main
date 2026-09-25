@@ -28,6 +28,8 @@ ADMIN
 CUSTOMER
 ```
 
+`ADMIN` is an internal platform-wide operator. It is not scoped to one Customer. The MVP has no tenant-administrator role. User email is globally unique, and only `SUPER_ADMIN` manages privileged `ADMIN` and `SUPER_ADMIN` accounts.
+
 ---
 
 ## Device
@@ -61,6 +63,14 @@ Technical term:
 ```text
 Device
 ```
+
+MVP lifecycle:
+
+```text
+PENDING_ACTIVATION -> ACTIVE -> INACTIVE
+```
+
+There is no `CREATED` status. Deactivation and authorized reactivation preserve history and the existing Customer association. Customer transfer is outside the MVP.
 
 ---
 
@@ -169,7 +179,7 @@ Device event types are extensible.
 
 High-frequency data preserved around an event trigger.
 
-Initial target:
+Fixed MVP window:
 
 ```text
 2 seconds before
@@ -179,7 +189,7 @@ event interval
 2 seconds after
 ```
 
-The evidence window is configurable.
+Changing the evidence window after the MVP requires an explicit decision.
 
 ---
 
@@ -212,6 +222,8 @@ Ticket message history is paginated and queryable over HTTP. Ticket lifecycle in
 ## DeviceRequest
 
 Technical resource representing a Customer request for one Device. The Dashboard presents it as a SmartBox Request.
+
+The MVP submission has only optional free-form `notes`; it has no quantity, structured address, contact or purpose fields.
 
 Minimum lifecycle:
 

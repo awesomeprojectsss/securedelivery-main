@@ -42,13 +42,15 @@ Não crie payloads locais que contradigam OpenAPI ou AsyncAPI.
 - O Server aplica RBAC e isolamento de Customer em HTTP e WebSocket.
 - Segredos de ativação existem somente em corpos JSON; nunca em path, query, log, trace ou mensagem de erro.
 - O QR web pode usar fragmento de URL. O cliente captura o valor localmente, limpa o histórico visível e envia o segredo no corpo.
+- O código do QR não expira em `PENDING_ACTIVATION`, mas não é credencial; após a primeira ativação, novas tentativas retornam `ALREADY_ACTIVATED`.
 
 ### Telemetria
 
 - IMU: 50 Hz local; GPS/velocidade: até 1 Hz local; resumo normal: um minuto.
-- O Device cria e persiste `monitoringSessionId`, `batchId` e `eventId` antes de transmitir.
+- O Device cria e persiste `monitoringSessionId`, `batchId`, `periodId` e `eventId` antes de transmitir.
 - Retries preservam os mesmos identificadores.
-- `navigation.status/source` e métricas obedecem à versão 3; valores desconhecidos são `null`, não zero.
+- `navigation.status/source` e métricas obedecem à versão 4; valores desconhecidos são `null`, não zero.
+- O lote recebe confirmação por `periodId`; rejeição parcial não descarta itens aceitos.
 - Somente números confiáveis entram nos KPIs.
 - `observations[]` e `eventType` continuam extensíveis.
 

@@ -187,17 +187,17 @@ Additional capabilities:
 - create Super Administrators
 - create Administrators
 - create Customers
-- change roles of Administrators and Customers
-- reset passwords of Administrators and Customers
-- activate Administrators and Customers
-- deactivate Administrators and Customers
+- create and manage Customer-scoped users
+- change roles of authorized users
+- reset passwords of authorized users
+- activate authorized users and Customers
+- deactivate authorized users and Customers
 
 Restrictions:
 
-- cannot reset the password of another Super Administrator
-- cannot deactivate another Super Administrator
-- cannot deactivate their own user
-- privileged actions should be auditable
+- cannot deactivate or demote their own user;
+- cannot deactivate, remove or demote the last active Super Administrator;
+- privileged actions must be auditable.
 
 A Super Administrator must not be able to accidentally lock themselves out through self-deactivation.
 
@@ -205,7 +205,7 @@ A Super Administrator must not be able to accidentally lock themselves out throu
 
 ## ADMIN
 
-Administrators manage customers, administrators, SmartBoxes and support operations.
+Administrators are internal, platform-wide SecureDelivery operators. They manage Customers, Customer-scoped users, SmartBoxes and support operations. They are not administrators restricted to one Customer, and the MVP does not define a `CUSTOMER_ADMIN` role.
 
 Capabilities include:
 
@@ -213,8 +213,7 @@ Capabilities include:
 - edit Customers
 - activate Customers
 - deactivate Customers
-- create Administrators
-- manage Administrators within allowed RBAC rules
+- create and manage `CUSTOMER` users
 - create SmartBoxes
 - edit SmartBoxes
 - deactivate SmartBoxes
@@ -235,6 +234,14 @@ Capabilities include:
 - close or resolve tickets
 
 SmartBox removal should preserve historical traceability. The initial architectural recommendation is soft deletion rather than destructive deletion.
+
+Only a Super Administrator may create or manage privileged `ADMIN` and `SUPER_ADMIN` accounts. User email addresses are globally unique.
+
+An administrative password reset assigns a temporary password, revokes every existing session for the affected user and requires a password change before normal protected capabilities become available. Passwords and reset material must never be logged.
+
+Customer deactivation blocks new authentication, revokes existing sessions and causes the Server to reject new monitoring, telemetry and event writes from that Customer's Devices. Historical records remain stored but are not visible to Customer users while the Customer is inactive. Authorized Administrators retain access to pending requests and support tickets. Reactivating the Customer does not silently reactivate its individual users or Devices.
+
+Security audit records are retained for 18 months by default and are then deleted or irreversibly anonymized unless a documented legal obligation, investigation or legal hold applies. Access is restricted to authorized internal operators. This policy must be periodically reviewed against the LGPD principles of purpose, necessity and retention; a fixed duration alone does not guarantee compliance.
 
 ---
 
@@ -261,7 +268,7 @@ Tenant isolation must be guaranteed by the backend.
 
 A Customer must never be able to access SmartBoxes, deliveries, events, tickets or users belonging to another Customer.
 
-SmartBox requests are represented technically as tenant-scoped `DeviceRequest` resources. A pending request is explicitly fulfilled by an authorized Administrator with an eligible `deviceId`, or cancelled by an authorized actor with a reason. Terminal transitions are immutable and auditable; the MVP does not attach billing, ecommerce or shipment tracking to this resource.
+SmartBox requests are represented technically as tenant-scoped `DeviceRequest` resources. One request represents exactly one Device and contains only optional free-form `notes` in the MVP. A pending request is explicitly fulfilled by an authorized Administrator with an eligible `deviceId`, or cancelled by an authorized actor with a reason. An eligible Device is `PENDING_ACTIVATION`, unassigned and not removed. Terminal transitions are immutable and auditable; the MVP does not attach quantity, structured address/contact/purpose, billing, ecommerce, inventory or shipment tracking to this resource.
 
 ---
 
@@ -269,11 +276,9 @@ SmartBox requests are represented technically as tenant-scoped `DeviceRequest` r
 
 The Device is created by an Administrator and later activated by a Customer. The Dashboard presents the Device as a SmartBox.
 
-Suggested conceptual lifecycle:
+Canonical MVP lifecycle:
 
 ```text
-CREATED
-    ↓
 PENDING_ACTIVATION
     ↓
 ACTIVE
@@ -309,15 +314,17 @@ Device is associated with Customer
 Device becomes ACTIVE
 ```
 
-The QR Code should not simply expose an internal Device identifier.
+The QR Code must not expose a sequential or internal Device identifier. It carries a high-entropy opaque activation code associated with the physical Device.
 
-Prefer a secure activation token with an explicit lifecycle and expiration strategy.
+While the Device remains `PENDING_ACTIVATION`, the activation code has no time-based expiration and may be scanned or validated repeatedly. It is not a bearer credential and never grants Device API access by itself. The first authenticated Customer confirmation atomically associates the Device and changes it to `ACTIVE`; later attempts return `ALREADY_ACTIVATED` and never transfer ownership. Validation and confirmation must be rate-limited.
 
 Activation material is accepted only in JSON request bodies. It must not appear in URL paths or query strings. A web QR link may place it in the URL fragment so the client can capture it locally, remove it from browser history and submit it in the request body. Every layer must redact it from logs, traces and errors.
 
 The exact token design may evolve.
 
-After an authenticated Customer confirms activation, the Device exchanges its short-lived activation material once for a Device credential. The credential represents only that Device, is separate from human authentication, and must be stored by the Flutter app using secure operating-system storage. The exact credential format, signing/rotation mechanism and storage package remain implementation details.
+After an authenticated Customer confirms activation, the Device exchanges its activation material once for a Device credential. The credential represents only that Device, is separate from human authentication, and must be stored by the Flutter app using secure operating-system storage. In the MVP it has no time-based expiration and remains valid until explicitly revoked, the Device becomes inactive/removed, or its Customer becomes inactive. Expired or revoked credentials are never accepted; pending offline data remains queued until authentication becomes valid again. The exact credential format, signing/rotation mechanism and storage package remain implementation details.
+
+Deactivation and authorized reactivation preserve history and the existing Customer association. Reactivation does not repeat the QR ownership flow. Transfer between Customers is outside the MVP.
 
 ---
 
@@ -369,7 +376,7 @@ Future versions may introduce route visualization, origin and destination tracki
 
 # Mobile IoT Monitoring
 
-The smartphone acts as the IoT device during the MVP.
+The smartphone acts as the IoT device during the MVP. The supported baseline is Android 10 (API level 29) or later; iOS is outside the initial MVP unless a later decision adds it.
 
 The test phone will be mounted horizontally on a flat surface of the SmartBox.
 
@@ -412,6 +419,10 @@ When monitoring is enabled:
 - synchronization runs according to policy
 - critical events are persisted immediately
 
+Monitoring requires background-operation permission. If permission or the required operating-system exemption is missing, Mobile must explain the need and provide a direct action to the appropriate Android settings screen.
+
+Monitoring must not start, and an active session must stop safely, when the battery is below 15% and the Device is not charging, when Android reports a thermal status of `SEVERE` or worse, or when the Device reaches 12 accumulated monitoring hours in a rolling 24-hour period. Android thermal status, rather than a fixed raw value such as 90 °C, is the canonical safety signal.
+
 Before acquisition starts, the Device generates and durably stores the canonical `monitoringSessionId`. The same UUID is used for session creation, telemetry, events, stop synchronization and every retry. The Server does not assign a competing identifier.
 
 Monitoring may start and stop without connectivity. On reconnect, the Device idempotently creates/reconciles the session, uploads dependent telemetry/events, and sends the Device-observed `finishedAt`. Server receipt time must not replace the actual stop time.
@@ -425,7 +436,7 @@ Sensor acquisition, normal telemetry and network transmission have intentionally
 Initial MVP profile:
 
 ```text
-Raw IMU sampling:                50 Hz (~20 ms)
+Raw IMU sampling target:         50 Hz (~20 ms)
 Event detection:                 high-frequency local processing
 GPS / ground-speed observation:  up to 1 Hz
 Normal server telemetry:         1-minute summary
@@ -475,7 +486,7 @@ Event types are intentionally extensible.
 
 New event detectors should normally be deployable on the Device without requiring a backend contract change.
 
-The exact algorithms and thresholds will evolve through real-device tests.
+The exact algorithms, thresholds, calibration procedure and acceptable false-positive/false-negative targets remain undecided. Production thresholds must not be invented without real-Device testing and a dedicated architecture decision.
 
 # Event Evidence
 
@@ -498,19 +509,19 @@ Event
       └── high-frequency observations[]
 ```
 
-Initial evidence target:
+Fixed MVP evidence window:
 
 ```text
-approximately 2 seconds before trigger
+2 seconds before trigger
 +
 trigger/event interval
 +
-approximately 2 seconds after trigger
+2 seconds after trigger
 ```
 
 At a 50 Hz IMU baseline, this preserves motion detail at roughly 20 ms intervals.
 
-The exact evidence window remains configurable.
+Changing this window after the MVP requires an explicit configuration/architecture decision.
 
 Evidence supports:
 
@@ -558,7 +569,11 @@ The Server derives average moving speed from total distance and total moving dur
 
 High-frequency motion data is synchronized primarily as evidence when an event is detected.
 
-Offline period summaries remain stored locally and are sent later through the same idempotent batch contract.
+Offline period summaries remain stored locally and are sent later through the same idempotent batch contract. Mobile sends pending periods in batches, while the Server acknowledges each period independently. Valid sibling periods may be accepted when another period is rejected. A partial rejection remains locally diagnosable/retryable and raises `device.sync_partial_failure` for later synchronization.
+
+The baseline retry interval is one minute. Mobile must honor an explicit server `Retry-After` instruction and must not start concurrent duplicate sends. Exponential backoff is not required in the initial MVP.
+
+Mobile manages at most 50 MiB of durable monitoring payloads. Before rejecting a new write, it removes Server-acknowledged data and then the oldest normal telemetry. Unsynchronized events and evidence have higher retention priority. If no safe cleanup is possible, Mobile must not claim the new data was stored; it records a minimal diagnostic when feasible and raises `device.storage_low` for later synchronization.
 
 # MVP Navigation and Speed Telemetry
 
@@ -581,7 +596,7 @@ navigation.stoppedDurationSeconds          [s]
 navigation.maximumSpeedMetersPerSecond     [m/s]
 ```
 
-All four keys are required KPI inputs in telemetry schema version 3. Available values are nonnegative; unavailable values are `null`, never a fabricated zero. `navigation.status` (`VALID`, `PARTIAL`, `UNAVAILABLE`) and `navigation.source` (`GNSS`, `GPS_DERIVED`, `UNAVAILABLE`) make completeness explicit. Generic `observations[]` remains available for future extensible business-value measurements and does not carry duplicate copies of these four fields.
+All four keys are required KPI inputs in telemetry schema version 4. Available values are nonnegative; unavailable values are `null`, never a fabricated zero. `navigation.status` (`VALID`, `PARTIAL`, `UNAVAILABLE`) and `navigation.source` (`GNSS`, `GPS_DERIVED`, `UNAVAILABLE`) make completeness explicit. Version 4 also gives every period a stable `periodId` for per-item acknowledgement. Generic `observations[]` remains available for future extensible business-value measurements and does not carry duplicate copies of these four fields.
 
 The Server derives:
 
@@ -651,6 +666,7 @@ Examples:
 
 ```text
 batchId
+periodId
 eventId
 ```
 

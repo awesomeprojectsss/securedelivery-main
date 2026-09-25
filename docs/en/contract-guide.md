@@ -19,6 +19,8 @@ OpenAPI and AsyncAPI are canonical. This guide explains intent but does not rede
 
 The web QR carries bootstrap material in a URL fragment, the client submits `{ "activationToken": "..." }` to the body-based validate and confirm endpoints, and the Device performs its one-time exchange through `POST /device-credentials/exchange`. Every layer redacts the secret from logs, traces and errors.
 
+The high-entropy code does not expire while the Device is `PENDING_ACTIVATION`; it may be validated again but does not authorize Device APIs. The first confirmation activates and associates the SmartBox. Later attempts return `ALREADY_ACTIVATED` and never transfer ownership. Server rate-limits attempts.
+
 ### Navigation quality
 
 | `status` | `source` | Metrics |
@@ -38,11 +40,17 @@ PENDING --cancel(reason)-----> CANCELLED
 
 Only Server authorizes and commits transitions. Terminal states cannot return to `PENDING` or change into one another.
 
+Each request represents exactly one Device, accepts only optional `notes`, and may be fulfilled only with a `PENDING_ACTIVATION`, unassigned, non-removed Device.
+
+### Per-period telemetry acknowledgement
+
+Mobile sends several periods in a batch, but every period has a stable `periodId` and receives its own result. Accepted items may be removed locally; rejected items remain for diagnosis or retry. One invalid item does not discard valid siblings.
+
 ## Current versions
 
 - HTTP route: `/api/v1`;
-- OpenAPI document: `1.3.0`;
-- telemetry envelope: `schemaVersion = 3`;
+- OpenAPI document: `1.4.0`;
+- telemetry envelope: `schemaVersion = 4`;
 - Device-event envelope: `schemaVersion = 2`.
 
 [Back to documentation](README.md) · [Development guide](development-guide.md)

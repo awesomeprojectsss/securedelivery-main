@@ -2,14 +2,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ignoredDirectories = new Set(['.git', '.tmp', 'node_modules']);
+const ignoredDirectoryPaths = new Set([
+  path.join('securedelivery-server', '.agents', 'skills', 'prisma-8'),
+  path.join('securedelivery-server', '.claude', 'skills', 'prisma-8'),
+]);
 
 function walk(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.isDirectory() && ignoredDirectories.has(entry.name)) {
+    const entryPath = path.join(directory, entry.name);
+    if (
+      entry.isDirectory() &&
+      (ignoredDirectories.has(entry.name) || ignoredDirectoryPaths.has(entryPath))
+    ) {
       return [];
     }
 
-    const entryPath = path.join(directory, entry.name);
     return entry.isDirectory() ? walk(entryPath) : [entryPath];
   });
 }
