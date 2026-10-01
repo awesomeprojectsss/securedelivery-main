@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "@asyncapi/parser": "3.6.3",
-    "@redocly/cli": "2.49.1"
+    "@redocly/cli": "2.54.3"
   },
   "engines": {
     "node": ">=24 <25"
