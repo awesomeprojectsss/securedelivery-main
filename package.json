@@ -8,8 +8,8 @@
     "check:docs": "node scripts/check-doc-links.mjs"
   },
   "devDependencies": {
-    "@asyncapi/parser": "3.6.3",
-    "@redocly/cli": "2.49.1"
+    "@asyncapi/parser": "3.6.6",
+    "@redocly/cli": "2.72.0"
   },
   "engines": {
     "node": ">=24 <25"
